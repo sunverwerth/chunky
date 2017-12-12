@@ -8,3 +8,6 @@ all: bin/triangle
 
 run: all
 	bin/triangle
+
+clean:
+	rm bin/*
