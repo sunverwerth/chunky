@@ -17,8 +17,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 100;
+const unsigned int SCR_HEIGHT = 100;
 
 class GLShader {
 public:
@@ -272,6 +272,7 @@ int main()
 	float vertices[] = {
 		0.5f,  0.5f, 0.0f,	1.0f, 0.0f, 0.0f,  // top right
 		0.5f, -0.5f, 0.0f,	0.0f, 1.0f, 0.0f, // bottom right
+		0.0f, -1.0f, 0.0f,	0.0f, 1.0f, 0.0f, // bottom middle
 		-0.5f, -0.5f, 0.0f,	0.0f, 0.0f, 1.0f, // bottom left
 		-0.5f,  0.5f, 0.0f,	1.0f, 0.0f, 1.0f, // top left 
 	};
@@ -291,8 +292,9 @@ int main()
 	EBO.bind();
 
 	unsigned int indices[] = {  // note that we start from 0!
-		0, 1, 3,   // first triangle
-		1, 2, 3    // second triangle
+		0, 1, 2,   // first triangle
+		0, 2, 3,    // second triangle
+		0, 3, 4    // second triangle
 	};
 
 	EBO.setData(sizeof(indices), indices, GL_STATIC_DRAW);
@@ -324,7 +326,7 @@ int main()
 		program.setUniform4f("ourColor", 0.0f, greenValue, 0.0f, 1.0f);
 
 		mesh.bind();
-		gl.drawIndexed(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		gl.drawIndexed(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0);
 
 		// glBindVertexArray(0); // no need to unbind it every time 
 
