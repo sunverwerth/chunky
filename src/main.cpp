@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cmath>
 
 std::string readFile(const char* name) {
 	std::ifstream t(name);

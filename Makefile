@@ -1,4 +1,4 @@
-LDFLAGS=-ldl -lglfw -lGL -lglut
+LDFLAGS=--std=c++11 -ldl -lglfw -lGL -lglut
 CC=g++
 
 bin/triangle:
