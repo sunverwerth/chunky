@@ -94,6 +94,11 @@ public:
 		glUseProgram(handle);
 	}
 
+	void setUniform4f(const char* name, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
+		int location = getUniformLocation(name);
+		glUniform4f(location, x, y, z, w);
+	}
+
 	GLuint handle;
 };
 
@@ -113,6 +118,10 @@ public:
 
 	void unbind() {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+
+	void setData(GLsizeiptr size, const void* data, GLenum usage) {
+		glBufferData(GL_ARRAY_BUFFER, size, data, usage);	
 	}
 
 	GLuint handle;
@@ -158,6 +167,10 @@ public:
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 
+	void setData(GLsizeiptr size, const void* data, GLenum usage) {
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, usage);
+	}
+
 	GLuint handle;
 };
 
@@ -174,6 +187,24 @@ public:
 	GLVertexArray* vertices;
 	GLElementBuffer* indices;
 };
+
+class GL {
+public:
+	void clearColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
+		glClearColor(r, g, b, a);
+		glClear(GL_COLOR_BUFFER_BIT);		
+	}
+
+	void viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+		glViewport(0, 0, width, height);
+	}
+
+	void drawIndexed(GLenum mode, GLsizei count, GLenum type, const void* indices) {
+		glDrawElements(mode, count, type, indices);
+	}
+};
+
+GL gl;
 
 int main()
 {
@@ -242,10 +273,10 @@ int main()
 		0.5f,  0.5f, 0.0f,	1.0f, 0.0f, 0.0f,  // top right
 		0.5f, -0.5f, 0.0f,	0.0f, 1.0f, 0.0f, // bottom right
 		-0.5f, -0.5f, 0.0f,	0.0f, 0.0f, 1.0f, // bottom left
-		-0.5f,  0.5f, 0.0f,	1.0f, 1.0f, 1.0f, // top left 
+		-0.5f,  0.5f, 0.0f,	1.0f, 0.0f, 1.0f, // top left 
 	};
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	VBO.setData(sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
@@ -264,7 +295,7 @@ int main()
 		1, 2, 3    // second triangle
 	};
 
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+	EBO.setData(sizeof(indices), indices, GL_STATIC_DRAW);
 
 	EBO.unbind();
 
@@ -283,19 +314,17 @@ int main()
 
 		// render
 		// ------
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		gl.clearColor(0.2f, 0.3f, 0.3f, 1.0f);
 
 		// draw our first triangle
 		program.use();
 
 		float timeValue = glfwGetTime();
 		float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
-		int vertexColorLocation = program.getUniformLocation("ourColor");
-		glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+		program.setUniform4f("ourColor", 0.0f, greenValue, 0.0f, 1.0f);
 
 		mesh.bind();
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		gl.drawIndexed(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		// glBindVertexArray(0); // no need to unbind it every time 
 
@@ -323,7 +352,5 @@ void processInput(GLFWwindow *window)
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	// make sure the viewport matches the new window dimensions; note that width and 
-	// height will be significantly larger than specified on retina displays.
-	glViewport(0, 0, width, height);
+	gl.viewport(0, 0, width, height);
 }
