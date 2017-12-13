@@ -97,27 +97,6 @@ public:
 	GLuint handle;
 };
 
-class GLVertexArray {
-public:
-	GLVertexArray() {
-		glGenVertexArrays(1, &handle);
-	}
-
-	~GLVertexArray() {
-		glDeleteVertexArrays(1, &handle);
-	}
-
-	void bind() {
-		glBindVertexArray(handle);
-	}
-
-	void unbind() {
-		glBindVertexArray(0);
-	}
-
-	GLuint handle;
-};
-
 class GLVertexBuffer {
 public:
 	GLVertexBuffer() {
@@ -136,6 +115,28 @@ public:
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
+	GLuint handle;
+};
+
+class GLVertexArray {
+public:
+	GLVertexArray(GLVertexBuffer* buffer): buffer(buffer) {
+		glGenVertexArrays(1, &handle);
+	}
+
+	~GLVertexArray() {
+		glDeleteVertexArrays(1, &handle);
+	}
+
+	void bind() {
+		glBindVertexArray(handle);
+	}
+
+	void unbind() {
+		glBindVertexArray(0);
+	}
+
+	GLVertexBuffer* buffer;
 	GLuint handle;
 };
 
@@ -158,6 +159,20 @@ public:
 	}
 
 	GLuint handle;
+};
+
+class GLMesh {
+public:
+	GLMesh(GLVertexArray* vertices, GLElementBuffer* indices): vertices(vertices), indices(indices) {
+	}
+
+	void bind() {
+		vertices->bind();
+		indices->bind();
+	}
+
+	GLVertexArray* vertices;
+	GLElementBuffer* indices;
 };
 
 int main()
@@ -216,8 +231,8 @@ int main()
 		return -1;
 	}
 
-	auto VAO = GLVertexArray();
 	auto VBO = GLVertexBuffer();
+	auto VAO = GLVertexArray(&VBO);
 
 	// bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
 	VAO.bind();
@@ -253,6 +268,7 @@ int main()
 
 	EBO.unbind();
 
+	auto mesh = GLMesh(&VAO, &EBO);
 
 	// uncomment this call to draw in wireframe polygons.
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -278,8 +294,7 @@ int main()
 		int vertexColorLocation = program.getUniformLocation("ourColor");
 		glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
 
-		VAO.bind();
-		EBO.bind();
+		mesh.bind();
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		// glBindVertexArray(0); // no need to unbind it every time 

@@ -1,8 +1,8 @@
 LDFLAGS=--std=c++11 -ldl -lglfw -lGL -lglut
 CC=g++
 
-bin/triangle:
-	$(CC) src/*.c* $(LDFLAGS) -o bin/triangle
+bin/triangle: $(wildcard, src/*.cpp);
+	$(CC) src/*.cpp $(LDFLAGS) -o bin/triangle
 	
 all: bin/triangle
 
