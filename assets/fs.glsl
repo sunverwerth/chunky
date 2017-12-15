@@ -2,6 +2,7 @@
 
 in vec3 ourColor;
 in vec2 TexCoord;
+in vec4 Normal;
 
 out vec4 FragColor;  
   
@@ -12,5 +13,5 @@ void main()
 {
 	vec4 t1 = texture(texture1, TexCoord);
 	vec4 t2 = texture(texture2, TexCoord);
-    FragColor = mix(t1, t2, t2.a);
+    FragColor = mix(t1, t2, t2.a) * (clamp(Normal.y, 0, 1) + 0.1);
 }

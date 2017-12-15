@@ -24,7 +24,7 @@ void processInput(GLFWwindow *window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 800;
+const unsigned int SCR_HEIGHT = 600;
 
 class GLShader {
 public:
@@ -125,10 +125,18 @@ public:
 		glUseProgram(handle);
 	}
 
-	void setUniform4f(const char* name, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
-		int location = getUniformLocation(name);
-		glUniform4f(location, x, y, z, w);
+	void setUniform(const char* name, float x, float y, float z, float w) {
+		glUniform4f(getUniformLocation(name), x, y, z, w);
 	}
+
+	void setUniform(const char* name, int val) {
+		glUniform1i(glGetUniformLocation(handle, name), val);
+	}
+
+	void setUniform(const char* name, const glm::mat4& mat) {
+		glUniformMatrix4fv(glGetUniformLocation(handle, name), 1, GL_FALSE, glm::value_ptr(mat));
+	}
+
 
 	GLuint handle;
 };
@@ -233,7 +241,7 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 		stbi_set_flip_vertically_on_load(true);
 
@@ -272,6 +280,14 @@ public:
 	void bind(GLMesh* mesh) {
 		mesh->bind();
 	}
+
+	void enable(unsigned int option) {
+		glEnable(option);
+	}
+
+	void disable(unsigned int option) {
+		glDisable(option);
+	}
 };
 
 GL gl;
@@ -289,8 +305,6 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-														 // glfw window creation
-														 // --------------------
 	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
 	if (window == NULL)
 	{
@@ -312,7 +326,7 @@ int main()
 	gl.width = SCR_WIDTH;
 	gl.height = SCR_HEIGHT;
 
-	glEnable(GL_DEPTH_TEST);
+	gl.enable(GL_DEPTH_TEST);
 
 	// vertex shader
 	auto vs = GLVertexShader(readFile("assets/vs.glsl"));
@@ -345,55 +359,63 @@ int main()
 	VBO.bind();
 
 	float vertices[] = {
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-		0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+		// front
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
+		0.5f, -0.5f, -0.5f,  1.0f, 0.0f,  0.0f, 0.0f, -1.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f, 0.0f, -1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
 
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		// back
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
 
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		// left
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
 
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		// right
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f, 0.0f, 0.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  1.0f, 0.0f, 0.0f,
+		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f, 0.0f, 0.0f,
+		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f, 0.0f, 0.0f,
+		0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f, 0.0f, 0.0f,
 
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		// bottom
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f, 0.0f,
+		0.5f, -0.5f, -0.5f,  1.0f, 1.0f,  0.0f, -1.0f, 0.0f,
+		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f, 0.0f,
 
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+		// top
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,
 	};
 
 	VBO.setData(sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 
 	VBO.unbind();
 	VAO.unbind();
@@ -421,8 +443,8 @@ int main()
 	auto texture1 = gl.loadTexture2D("assets/container.jpg");
 	auto texture2 = gl.loadTexture2D("assets/awesomeface.png");
 
-	glUniform1i(glGetUniformLocation(program.handle, "texture1"), 0);
-	glUniform1i(glGetUniformLocation(program.handle, "texture2"), 1);
+	program.setUniform("texture1", 0);
+	program.setUniform("texture2", 1);
 
 	// render loop
 	// -----------
@@ -434,7 +456,7 @@ int main()
 
 		// render
 		// ------
-		gl.clearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		gl.clearColor(0.2f, 0.2f, 0.5f, 1.0f);
 
 		gl.use(&program);
 		gl.bind(texture1, 0);
@@ -444,21 +466,18 @@ int main()
 		glm::mat4 view(1.0f);
 		glm::mat4 projection(1.0f);
 
-		world = glm::rotate(world, (float)glfwGetTime(), glm::vec3(1.0f, 0.0f, 0.0f));
-		world = glm::rotate(world, (float)glfwGetTime()*0.31f, glm::vec3(0.0f, 1.0f, 0.0f));
-		world = glm::rotate(world, (float)glfwGetTime()*2.7f, glm::vec3(0.0f, 0.0f, 1.0f));
+		world = glm::rotate(world, (float)glfwGetTime()*0.43f, glm::vec3(1.0f, 0.0f, 0.0f));
+		world = glm::rotate(world, (float)glfwGetTime()*0.13f, glm::vec3(0.0f, 1.0f, 0.0f));
+		world = glm::rotate(world, (float)glfwGetTime()*1.07f, glm::vec3(0.0f, 0.0f, 1.0f));
 
 		view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-		projection = glm::perspective(glm::radians(45.0f), (float)gl.width / (float)gl.height, 0.1f, 100.0f);
+		projection = glm::perspective(glm::radians(60.0f), (float)gl.width / (float)gl.height, 0.1f, 100.0f);
 
-		unsigned int index = glGetUniformLocation(program.handle, "worldMatrix");
-		glUniformMatrix4fv(index, 1, GL_FALSE, glm::value_ptr(world));
-
-		index = glGetUniformLocation(program.handle, "viewMatrix");
-		glUniformMatrix4fv(index, 1, GL_FALSE, glm::value_ptr(view));
-
-		index = glGetUniformLocation(program.handle, "projectionMatrix");
-		glUniformMatrix4fv(index, 1, GL_FALSE, glm::value_ptr(projection));
+		program.setUniform("world", world);
+		program.setUniform("view", view);
+		program.setUniform("projection", projection);
+		program.setUniform("worldView", view * world);
+		program.setUniform("worldViewProjection", projection * view * world);
 
 		gl.bind(&mesh);
 		//gl.drawIndexed(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -490,5 +509,7 @@ void processInput(GLFWwindow *window)
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
+	gl.width = width;
+	gl.height = height;
 	gl.viewport(0, 0, width, height);
 }
