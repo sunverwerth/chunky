@@ -1,18 +1,29 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
+#include "GLContext.h"
+#include "GLProgram.h"
+#include "GLMesh.h"
+#include "lina.h"
+#include "Model.h"
+#include "Material.h"
+#include "GUI.h"
+#include "Camera.h"
+#include "Chunk.h"
+#include "ChunkGenerator.h"
 #include "stb_image.h"
 
+#include <vector>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <cmath>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-std::string readFile(const char* name) {
+std::string readFile(const std::string& name) {
 	std::ifstream t(name);
 	std::stringstream buffer;
 	buffer << t.rdbuf();
@@ -21,279 +32,84 @@ std::string readFile(const char* name) {
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
-// settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+void error(const std::string& msg) {
+#ifdef _WIN32
+	MessageBoxA(0, msg.c_str(), "Error", MB_OK);
+#else
+	std::cerr << msg << "\n";
+#endif
+}
 
-class GLShader {
-public:
-	virtual ~GLShader() {
-		glDeleteShader(handle);
+GLContext gl;
+Camera* camera = nullptr;
+std::vector<Chunk*> chunks;
+int hits = 0;
+int misses = 0;
+Chunk* lastChunk = nullptr;
+Chunk* getChunk(int gridx, int gridy, int gridz) {
+	if (lastChunk && lastChunk->gridx == gridx && lastChunk->gridy == gridy && lastChunk->gridz == gridz) {
+		hits++;
+		return lastChunk;
 	}
-
-	bool isSuccess() {
-		int success;
-		glGetShaderiv(handle, GL_COMPILE_STATUS, &success);
-		return success;
-	}
-
-	std::string getInfoLog() {
-		char infoLog[512];
-		glGetShaderInfoLog(handle, 512, NULL, infoLog);
-		return infoLog;
-	}
-
-	GLuint handle;
-};
-
-class GLVertexShader : public GLShader {
-public:
-	GLVertexShader(const std::string& source) {
-		auto str = source.c_str();
-		handle = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(handle, 1, &str, NULL);
-		glCompileShader(handle);
-	}
-};
-
-class GLFragmentShader : public GLShader {
-public:
-	GLFragmentShader(const std::string& source) {
-		auto str = source.c_str();
-		handle = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(handle, 1, &str, NULL);
-		glCompileShader(handle);
-	}
-};
-
-class GLVertexBuffer {
-public:
-	GLVertexBuffer() {
-		glGenBuffers(1, &handle);
-	}
-
-	~GLVertexBuffer() {
-		glDeleteBuffers(1, &handle);
-	}
-
-	void bind() {
-		glBindBuffer(GL_ARRAY_BUFFER, handle);
-	}
-
-	void unbind() {
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-	}
-
-	void setData(GLsizeiptr size, const void* data, GLenum usage) {
-		glBufferData(GL_ARRAY_BUFFER, size, data, usage);
-	}
-
-	GLuint handle;
-};
-
-class GLProgram {
-public:
-	GLProgram(const GLVertexShader& vs, const GLFragmentShader& fs) {
-		handle = glCreateProgram();
-		glAttachShader(handle, vs.handle);
-		glAttachShader(handle, fs.handle);
-		glLinkProgram(handle);
-	}
-
-	~GLProgram() {
-		glDeleteProgram(handle);
-	}
-
-	bool isSuccess() {
-		int success;
-		glGetProgramiv(handle, GL_LINK_STATUS, &success);
-		return success;
-	}
-
-	std::string getInfoLog() {
-		char infoLog[512];
-		glGetProgramInfoLog(handle, 512, NULL, infoLog);
-		return infoLog;
-	}
-
-	int getUniformLocation(const char* name) {
-		return glGetUniformLocation(handle, name);
-	}
-
-	void use() {
-		glUseProgram(handle);
-	}
-
-	void setUniform(const char* name, float x, float y, float z, float w) {
-		glUniform4f(getUniformLocation(name), x, y, z, w);
-	}
-
-	void setUniform(const char* name, int val) {
-		glUniform1i(glGetUniformLocation(handle, name), val);
-	}
-
-	void setUniform(const char* name, const glm::mat4& mat) {
-		glUniformMatrix4fv(glGetUniformLocation(handle, name), 1, GL_FALSE, glm::value_ptr(mat));
-	}
-
-
-	GLuint handle;
-};
-
-class GLVertexArray {
-public:
-	GLVertexArray(GLVertexBuffer* buffer) : buffer(buffer) {
-		glGenVertexArrays(1, &handle);
-	}
-
-	~GLVertexArray() {
-		glDeleteVertexArrays(1, &handle);
-	}
-
-	void bind() {
-		glBindVertexArray(handle);
-	}
-
-	void unbind() {
-		glBindVertexArray(0);
-	}
-
-	GLVertexBuffer* buffer;
-	GLuint handle;
-
-};
-
-class GLElementBuffer {
-public:
-	GLElementBuffer() {
-		glGenBuffers(1, &handle);
-	}
-
-	~GLElementBuffer() {
-		glDeleteBuffers(1, &handle);
-	}
-
-	void bind() {
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
-	}
-
-	void unbind() {
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	}
-
-	void setData(GLsizeiptr size, const void* data, GLenum usage) {
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, usage);
-	}
-
-	GLuint handle;
-};
-
-class GLMesh {
-public:
-	GLMesh(GLVertexArray* vertices, GLElementBuffer* indices) : vertices(vertices), indices(indices) {
-	}
-
-	void bind() {
-		vertices->bind();
-		indices->bind();
-	}
-
-	GLVertexArray* vertices;
-	GLElementBuffer* indices;
-
-};
-
-class GLTexture {
-public:
-	unsigned int handle;
-};
-
-class GL {
-public:
-	int width;
-	int height;
-
-	void clearColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
-		glClearColor(r, g, b, a);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	}
-
-	void viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
-		width = width;
-		height = height;
-		glViewport(0, 0, width, height);
-	}
-
-	void drawIndexed(GLenum mode, GLsizei count, GLenum type, const void* indices) {
-		glDrawElements(mode, count, type, indices);
-	}
-
-	void use(GLProgram* program) {
-		glUseProgram(program->handle);
-	}
-
-	GLTexture* loadTexture2D(const char* name) {
-		unsigned int handle;
-		glGenTextures(1, &handle);
-		glBindTexture(GL_TEXTURE_2D, handle);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-		stbi_set_flip_vertically_on_load(true);
-
-		int width, height, nrChannels;
-		unsigned char *data = stbi_load(name, &width, &height, &nrChannels, 0);
-		if (!data) {
-			glDeleteTextures(1, &handle);
-			return nullptr;
+	misses++;
+	for (auto& chunk : chunks) {
+		if (chunk->gridx == gridx && chunk->gridy == gridy && chunk->gridz == gridz) {
+			lastChunk = chunk;
+			return chunk;
 		}
-
-		unsigned int format;
-		switch (nrChannels) {
-		case 4:
-			format = GL_RGBA;
-			break;
-		case 3:
-		default:
-			format = GL_RGB;
-		}
-
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		stbi_image_free(data);
-
-		auto texture = new GLTexture();
-		texture->handle = handle;
-		return texture;
 	}
+	return nullptr;
+}
 
-	void bind(GLTexture* texture, int slot) {
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, texture->handle);
-	}
+BlockType getBlockAt(int x, int y, int z);
+Vector3 getChunkPos(int x, int y, int z);
 
-	void bind(GLMesh* mesh) {
-		mesh->bind();
-	}
+Vector3 getChunkPos(int x, int y, int z) {
+	Vector3 result(x / chunkSize, y / chunkSize, z / chunkSize);
+	if (x < 0 && (x % chunkSize) != 0) result.x -= 1;
+	if (y < 0 && (y % chunkSize) != 0) result.y -= 1;
+	if (z < 0 && (z % chunkSize) != 0) result.z -= 1;
+	return result;
+}
 
-	void enable(unsigned int option) {
-		glEnable(option);
-	}
+Vector3 floor(const Vector3& pos) {
+	return Vector3(std::floorf(pos.x), std::floorf(pos.y), std::floorf(pos.z));
+}
 
-	void disable(unsigned int option) {
-		glDisable(option);
-	}
-};
+BlockType getBlockAt(const Vector3& pos) {
+	auto qp = floor(pos);
+	return getBlockAt(qp.x, qp.y, qp.z);
+}
 
-GL gl;
+BlockType getBlockAt(int x, int y, int z) {
+	Vector3 cp = getChunkPos(x, y, z);
+	auto chunk = getChunk(cp.x, cp.y, cp.z);
+	if (!chunk) return BlockType::BEDROCK;
 
-int main()
-{
+	return chunk->getBlockAt(x - cp.x*chunkSize, y - cp.y*chunkSize, z - cp.z*chunkSize);
+}
+
+void setBlockAt(int x, int y, int z, BlockType type) {
+	Vector3 cp = getChunkPos(x, y, z);
+	auto chunk = getChunk(cp.x, cp.y, cp.z);
+	if (!chunk) return;
+
+	chunk->setBlockAt(x - cp.x*chunkSize, y - cp.y*chunkSize, z - cp.z*chunkSize, type);
+}
+
+double time, dt;
+Vector3 position(0, 10, 0);
+Vector3 velocity(0, 0, 0);
+Vector2 move(0, 0);
+bool forward, backward, left, right, jump, click;
+
+#ifdef _WIN32
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR cmdLine, int nShowCmd) {
+#else
+int main() {
+#endif
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
@@ -305,7 +121,10 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+	gl.width = 1200;
+	gl.height = 800;
+
+	GLFWwindow* window = glfwCreateWindow(gl.width, gl.height, "LearnOpenGL", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -319,174 +138,333 @@ int main()
 	// ---------------------------------------
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		std::cout << "Failed to initialize GLAD" << std::endl;
+		error("Failed to initialize GLAD");
 		return -1;
 	}
-
-	gl.width = SCR_WIDTH;
-	gl.height = SCR_HEIGHT;
 
 	gl.enable(GL_DEPTH_TEST);
+	gl.enable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
-	// vertex shader
-	auto vs = GLVertexShader(readFile("assets/vs.glsl"));
-	if (!vs.isSuccess())
-	{
-		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << vs.getInfoLog() << std::endl;
-		return -1;
-	}
+	std::vector<Model*> models;
 
-	// fragment shader
-	auto fs = GLFragmentShader(readFile("assets/fs.glsl"));
-	if (!fs.isSuccess())
-	{
-		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << fs.getInfoLog() << std::endl;
-		return -1;
-	}
+	camera = new Camera();
+	camera->position = position;
+	camera->rotation = Quaternion::identity;
+	camera->fov = 3.14f / 2.0f;
+	camera->zNear = 0.1f;
+	camera->zFar = 1000.0f;
+	camera->isOrthographic = false;
 
-	// link shaders
-	auto program = GLProgram(vs, fs);
-	if (!program.isSuccess()) {
-		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << program.getInfoLog() << std::endl;
-		return -1;
-	}
+	auto gui = new GUI();
+	gui->camera = new Camera();
+	gui->camera->isOrthographic = true;
+	gui->camera->zNear = 0.1f;
+	gui->camera->zFar = 1000.0f;
+	gui->material = new Material();
+	gui->material->alpha = true;
+	gui->material->program = gl.createProgram("assets/gui_vs.glsl", "assets/gui_fs.glsl");
+	gui->material->textures.push_back(gl.loadTexture("assets/font.png"));
 
-	auto VBO = GLVertexBuffer();
-	auto VAO = GLVertexArray(&VBO);
+	GUI::Label* label = (GUI::Label*)gui->root;
 
-	// bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-	VAO.bind();
-	VBO.bind();
+	auto chMat = new Material();
+	chMat->alpha = false;
+	chMat->program = gl.createProgram("assets/vs.glsl", "assets/fs.glsl");
+	chMat->textures.push_back(gl.loadTexture("assets/atlas.png"));
+	Chunk::chunkMaterial = chMat;
 
-	float vertices[] = {
-		// front
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
-		0.5f, -0.5f, -0.5f,  1.0f, 0.0f,  0.0f, 0.0f, -1.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f, 0.0f, -1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
+	auto wMat = new Material();
+	wMat->alpha = true;
+	wMat->program = chMat->program;
+	wMat->textures.push_back(chMat->textures[0]);
+	Chunk::waterMaterial = wMat;
 
-		// back
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
-		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, 0.0f, 1.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,  0.0f, 0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+	ChunkGenerator gen(glfwGetTimerValue());
 
-		// left
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetCursorPosCallback(window, mouse_callback);
 
-		// right
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f, 0.0f, 0.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  1.0f, 0.0f, 0.0f,
-		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f, 0.0f, 0.0f,
-		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f, 0.0f, 0.0f,
-		0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f, 0.0f, 0.0f,
-
-		// bottom
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f, 0.0f,
-		0.5f, -0.5f, -0.5f,  1.0f, 1.0f,  0.0f, -1.0f, 0.0f,
-		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f, 0.0f,
-
-		// top
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,
-		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,
-		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,
-	};
-
-	VBO.setData(sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-	VBO.unbind();
-	VAO.unbind();
-
-	auto EBO = GLElementBuffer();
-	EBO.bind();
-
-	unsigned int indices[] = {  // note that we start from 0!
-		0, 1, 2,   // first triangle
-		0, 2, 3,    // second triangle
-	};
-
-	EBO.setData(sizeof(indices), indices, GL_STATIC_DRAW);
-
-	EBO.unbind();
-
-	auto mesh = GLMesh(&VAO, &EBO);
-
-	// uncomment this call to draw in wireframe polygons.
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-
-	program.use(); // don't forget to activate/use the shader before setting uniforms!
-
-	auto texture1 = gl.loadTexture2D("assets/container.jpg");
-	auto texture2 = gl.loadTexture2D("assets/awesomeface.png");
-
-	program.setUniform("texture1", 0);
-	program.setUniform("texture2", 1);
+	double lastTick = glfwGetTime();
 
 	// render loop
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
-		// input
-		// -----
 		processInput(window);
 
-		// render
-		// ------
-		gl.clearColor(0.2f, 0.2f, 0.5f, 1.0f);
+		gl.clearAll(Vector4(0.8f, 0.8f, 1.0f, 1.0f), 1.0);
 
-		gl.use(&program);
-		gl.bind(texture1, 0);
-		gl.bind(texture2, 1);
+		time = glfwGetTime();
+		dt = time - lastTick;
+		lastTick = time;
 
-		glm::mat4 world(1.0f);
-		glm::mat4 view(1.0f);
-		glm::mat4 projection(1.0f);
+		if (dt > 0.1) {
+			dt = 0.1;
+		}
 
-		world = glm::rotate(world, (float)glfwGetTime()*0.43f, glm::vec3(1.0f, 0.0f, 0.0f));
-		world = glm::rotate(world, (float)glfwGetTime()*0.13f, glm::vec3(0.0f, 1.0f, 0.0f));
-		world = glm::rotate(world, (float)glfwGetTime()*1.07f, glm::vec3(0.0f, 0.0f, 1.0f));
+		Vector3 f(-sin(camera->yaw), 0, -cos(camera->yaw));
+		Vector3 r(cos(-camera->yaw), 0, sin(-camera->yaw));
+		velocity.z = velocity.x = 0;
+		if (forward) velocity = velocity + f * 4;
+		if (backward) velocity = velocity - f * 4;
+		if (left) velocity = velocity - r * 4;
+		if (right) velocity = velocity + r * 4;
+		if (jump) velocity.y = 5;
+		if (click) {
+			auto p = camera->position;
+			for (int i = 0; i < 100; ++i) {
+				p = p + camera->front() * 0.1f;
+				auto fl = floor(p);
+				auto ch = getChunkPos(fl.x, fl.y, fl.z);
+				auto chunk = getChunk(ch.x, ch.y, ch.z);
+				if (chunk && chunk->getBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize) != BlockType::AIR) {
+					chunk->setBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize, BlockType::AIR);
+					for (int x = -1; x < 2; ++x) {
+						for (int y = -1; y < 2; ++y) {
+							for (int z = -1; z < 2; ++z) {
+								chunk->liveBlocks.push_back(DynamicBlock{ (int)fl.x - (int)ch.x*chunkSize + x, (int)fl.y - (int)ch.y*chunkSize + y, (int)fl.z - (int)ch.z*chunkSize + z,1 });
+							}
+						}
+					}
+					break;
+				}
+			}
+		}
 
-		view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-		projection = glm::perspective(glm::radians(60.0f), (float)gl.width / (float)gl.height, 0.1f, 100.0f);
+		auto qp = floor(position);
+		auto cp = getChunkPos(qp.x, qp.y, qp.z);
 
-		program.setUniform("world", world);
-		program.setUniform("view", view);
-		program.setUniform("projection", projection);
-		program.setUniform("worldView", view * world);
-		program.setUniform("worldViewProjection", projection * view * world);
+		std::vector<Chunk*> newChunks;
+		for (int y = -3; y < 4; ++y) {
+			for (int x = -3; x < 4; ++x) {
+				for (int z = -3; z < 4; ++z) {
+					int ix = cp.x + x;
+					int iy = cp.y + y;
+					int iz = cp.z + z;
+					if (getChunk(ix, iy, iz)) continue;
+					auto chunk = new Chunk(ix, iy, iz);
+					chunk->generateBlocks(&gen);
+					chunks.push_back(chunk);
+				}
+			}
+		}
 
-		gl.bind(&mesh);
-		//gl.drawIndexed(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		std::vector<Chunk*> remaining;
+		for (auto& chunk : chunks) {
+			Vector3 pos = Vector3(chunk->gridx, chunk->gridy, chunk->gridz)*chunkSize;
+			if ((pos - position).length() > 250) {
+				if (chunk == lastChunk) lastChunk = nullptr;
+				models.erase(std::remove(models.begin(), models.end(), chunk->model));
+				models.erase(std::remove(models.begin(), models.end(), chunk->waterModel));
+				delete chunk;
+			}
+			else {
+				remaining.push_back(chunk);
+			}
+		}
+		chunks = remaining;
 
-		// glBindVertexArray(0); // no need to unbind it every time 
+		for (auto& chunk : chunks) {
+			if (chunk->isDirty) {
+				chunk->generateModel();
+				if (chunk->isNew) {
+					models.push_back(chunk->model);
+					models.push_back(chunk->waterModel);
+					chunk->isNew = false;
+				}
+			}
+		}
 
-		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-		// -------------------------------------------------------------------------------
+		for (auto& updateChunk : chunks) {
+
+			if (!updateChunk->liveBlocks.empty()) {
+				int i = rand() % updateChunk->liveBlocks.size();
+				auto block = updateChunk->liveBlocks.back();
+				updateChunk->liveBlocks.pop_back();
+
+				Vector3 wp(block.x + updateChunk->gridx*chunkSize, block.y + updateChunk->gridy*chunkSize, block.z + updateChunk->gridz*chunkSize);
+				auto type = getBlockAt(wp.x, wp.y, wp.z);
+				if (type == BlockType::WOOD) {
+					if (block.power > 0 && getBlockAt(wp.x, wp.y + 1, wp.z) == BlockType::AIR) {
+						setBlockAt(wp.x, wp.y + 1, wp.z, BlockType::WOOD);
+						updateChunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y + 1, block.z, block.power - 1 });
+					}
+					if (block.power > 0 && block.power < 8) {
+						for (int dx = -1; dx < 2; ++dx) {
+							for (int dz = -1; dz < 2; ++dz) {
+								if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+									setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
+									updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power / 4 });
+								}
+							}
+						}
+					}
+				}
+				else if (type == BlockType::LEAVES) {
+					if (block.power > 0) {
+						for (int dx = -1; dx < 2; ++dx) {
+							for (int dz = -1; dz < 2; ++dz) {
+								if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+									setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
+									updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power - 1 });
+								}
+							}
+						}
+					}
+				}
+				else if (type == BlockType::WATER) {
+					if (getBlockAt(wp.x, wp.y - 1, wp.z) == BlockType::AIR) {
+						setBlockAt(wp.x, wp.y - 1, wp.z, BlockType::WATER);
+						updateChunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y - 1, block.z, block.power });
+					}
+					for (int dx = -1; dx < 2; ++dx) {
+						for (int dz = -1; dz < 2; ++dz) {
+							if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+								setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::WATER);
+								updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power });
+							}
+						}
+					}
+				}
+			}
+		}
+
+		auto floorBlock = getBlockAt(qp.x, qp.y, qp.z);
+		if (floorBlock == BlockType::AIR) {
+			velocity.y -= 15.81f*dt;
+		}
+		else if (floorBlock == BlockType::WATER) {
+			velocity.y -= 1.5f*dt;
+		}
+
+		position = position + velocity * dt;
+		qp = floor(position);
+
+		if (velocity.y < 0) {
+			qp = floor(position);
+			floorBlock = getBlockAt(qp.x, qp.y, qp.z);
+			if (floorBlock != BlockType::AIR && floorBlock != BlockType::WATER) {
+				velocity.y = 0;
+				position.y = qp.y + 1 + 0.001f;
+			}
+		}
+
+		if (velocity.x > 0) {
+			qp = floor(position + Vector3::right*0.25f);
+			floorBlock = getBlockAt(qp.x, qp.y, qp.z);
+			auto qp2 = floor(position);
+			auto floorBlock2 = getBlockAt(qp2.x, qp2.y, qp2.z);
+			if (floorBlock != BlockType::AIR && floorBlock != BlockType::WATER) {
+				velocity.x = 0;
+				position.x = qp.x - 1 + 0.5f + 0.25f - 0.001f;
+			}
+		}
+		else if (velocity.x < 0) {
+			qp = floor(position + Vector3::left*0.25f);
+			floorBlock = getBlockAt(qp.x, qp.y, qp.z);
+			if (floorBlock != BlockType::AIR && floorBlock != BlockType::WATER) {
+				velocity.x = 0;
+				position.x = qp.x + 1 + 0.5f - 0.25f + 0.001f;
+			}
+		}
+
+		if (velocity.z > 0) {
+			qp = floor(position + Vector3::backward*0.25f);
+			floorBlock = getBlockAt(qp.x, qp.y, qp.z);
+			if (floorBlock != BlockType::AIR && floorBlock != BlockType::WATER) {
+				velocity.z = 0;
+				position.z = qp.z - 1 + 0.5f + 0.25f - 0.001f;
+			}
+		}
+		else if (velocity.z < 0) {
+			qp = floor(position + Vector3::forward*0.25f);
+			floorBlock = getBlockAt(qp.x, qp.y, qp.z);
+			if (floorBlock != BlockType::AIR && floorBlock != BlockType::WATER) {
+				velocity.z = 0;
+				position.z = qp.z + 1 + 0.5f - 0.25f + 0.001f;
+			}
+		}
+
+		int numActive = 0;
+		for (auto& chunk : chunks) {
+			numActive += chunk->liveBlocks.size();
+		}
+
+		std::stringstream sstr;
+		sstr << "pos   - X: " << position.x << " Y: " << position.y << " Z: " << position.z << "\n";
+		sstr << "block - X: " << qp.x << " Y: " << qp.y << " Z: " << qp.z << "\n";
+		sstr << "chunk - X: " << cp.x << " Y: " << cp.y << " Z: " << cp.z << "\n";
+		sstr << "Active blocks: " << numActive << "\n";
+		sstr << "Chunk hit ratio: " << ((long long)hits*100/(hits+misses)) << "%\n";
+		label->text = sstr.str();
+
+		// camera
+		camera->position = position + Vector3::up * 1.5f;
+		camera->width = gl.width;
+		camera->height = gl.height;
+		auto view = camera->getViewMatrix();
+		auto projection = camera->getProjectionMatrix();
+
+		// light
+		auto lightPos = Vector3(0, 1, -4);
+		auto lightColor = Vector3(1.0f, 1.0f, 1.0f);
+
+		// models
+		for (auto& model : models) {
+			if (model->material->alpha) continue;
+			model->material->use();
+
+			model->material->program->setUniform("view", view);
+			model->material->program->setUniform("projection", projection);
+			model->material->program->setUniform("eyePos", camera->position);
+			model->material->program->setUniform("lightPos", lightPos);
+			model->material->program->setUniform("lightColor", lightColor);
+
+			auto world = Matrix4x4(model->rotation);
+			world = world * matrixTranslation(model->position);
+
+			model->material->program->setUniform("world", world);
+			model->material->program->setUniform("worldView", view * world);
+			model->material->program->setUniform("worldViewProjection", projection * view * world);
+
+			model->mesh->draw();
+		}
+
+		for (auto& model : models) {
+			if (!model->material->alpha) continue;
+			model->material->use();
+
+			model->material->program->setUniform("view", view);
+			model->material->program->setUniform("projection", projection);
+			model->material->program->setUniform("eyePos", camera->position);
+			model->material->program->setUniform("lightPos", lightPos);
+			model->material->program->setUniform("lightColor", lightColor);
+
+			auto world = Matrix4x4(model->rotation);
+			world = world * matrixTranslation(model->position);
+
+			model->material->program->setUniform("world", world);
+			model->material->program->setUniform("worldView", view * world);
+			model->material->program->setUniform("worldViewProjection", projection * view * world);
+
+			model->mesh->draw();
+		}
+
+		gl.clearDepth(1.0);
+
+		gui->camera->width = gl.width;
+		gui->camera->height = gl.height;
+
+		label->position.x = -gl.width / 2;
+		label->position.y = gl.height / 2;
+
+		gui->material->use();
+		gui->material->program->setUniform("projection", gui->camera->getProjectionMatrix());
+
+		gui->updateMesh();
+		gui->mesh->draw();
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -501,8 +479,31 @@ int main()
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	static bool oldmousedown;
+	forward = backward = left = right = click = jump = false;
+
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
+	}
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		forward = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+		left = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+		backward = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+		right = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		jump = true;
+	}
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !oldmousedown) {
+		click = true;
+	}
+	oldmousedown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -512,4 +513,23 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	gl.width = width;
 	gl.height = height;
 	gl.viewport(0, 0, width, height);
+}
+
+// glfw: whenever the window size changed (by OS or user resize) this callback function executes
+// ---------------------------------------------------------------------------------------------
+void mouse_callback(GLFWwindow* window, double x, double y)
+{
+	static double oldx = x;
+	static double oldy = y;
+
+	auto dx = x - oldx;
+	auto dy = y - oldy;
+
+	oldx = x;
+	oldy = y;
+
+	if (camera) {
+		camera->yaw -= dx*0.01f;
+		camera->pitch -= dy*0.01f;
+	}
 }
