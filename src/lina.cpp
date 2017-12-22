@@ -75,6 +75,10 @@ Vector3 Vector3::backward(0.0f, 0.0f, 1.0f);
 
 Vector4 Vector4::zero(0.0f, 0.0f, 0.0f, 0.0f);
 Vector4 Vector4::white(1.0f, 1.0f, 1.0f, 1.0f);
+Vector4 Vector4::red(1.0f, 0.0f, 0.0f, 1.0f);
+Vector4 Vector4::green(0.0f, 1.0f, 0.0f, 1.0f);
+Vector4 Vector4::blue(0.0f, 0.0f, 1.0f, 1.0f);
+Vector4 Vector4::black(0.0f, 0.0f, 0.0f, 1.0f);
 
 Vector4 operator*(const Vector4& v, float f) {
 	return Vector4(v.x*f, v.y*f, v.z*f, v.w*f);
@@ -120,10 +124,17 @@ Matrix3x3 Matrix3x3::identity(
 
 
 
+/*Matrix4x4::Matrix4x4(const Quaternion& q) : m{
+	1.0f - 2.0f * q.y*q.y - 2.0f * q.z*q.z,	2.0f * q.x*q.y - 2.0f * q.z*q.w,	    2.0f * q.x*q.z + 2.0f * q.y*q.w, 0.0f,
+	2.0f * q.x*q.y + 2.0f * q.z*q.w,	    1.0f - 2.0f * q.x*q.x - 2.0f * q.z*q.z,	2.0f * q.y*q.z - 2.0f * q.x*q.w, 0.0f,
+	2.0f * q.x*q.z - 2.0f * q.y*q.w,	    2.0f * q.y*q.z + 2.0f * q.x*q.w,        1.0f - 2.0f * q.x*q.x - 2.0f * q.y*q.y, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f,
+} {}*/
+
 Matrix4x4::Matrix4x4(const Quaternion& q) : m{
-	1 - 2 * q.y*q.y - 2 * q.z*q.z,	2 * q.x*q.y - 2 * q.z*q.w,	2 * q.x*q.z + 2 * q.y*q.w, 0.0f,
-	2 * q.x*q.y + 2 * q.z*q.w,	1 - 2 * q.x*q.x - 2 * q.z*q.z,	2 * q.y*q.z - 2 * q.x*q.w, 0.0f,
-	2 * q.x*q.z - 2 * q.y*q.w,	2 * q.y*q.z + 2 * q.x*q.w,	1 - 2 * q.x*q.x - 2 * q.y*q.y, 0.0f,
+	1.0f - 2.0f * q.y*q.y - 2.0f * q.z*q.z,	2.0f * q.x*q.y + 2.0f * q.z*q.w,	    2.0f * q.x*q.z - 2.0f * q.y*q.w, 0.0f,
+	2.0f * q.x*q.y - 2.0f * q.z*q.w,	    1.0f - 2.0f * q.x*q.x - 2.0f * q.z*q.z,	2.0f * q.y*q.z + 2.0f * q.x*q.w, 0.0f,
+	2.0f * q.x*q.z + 2.0f * q.y*q.w,	    2.0f * q.y*q.z - 2.0f * q.x*q.w,        1.0f - 2.0f * q.x*q.x - 2.0f * q.y*q.y, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f,
 } {}
 
@@ -131,10 +142,11 @@ Matrix4x4 operator*(const Matrix4x4& a, const Matrix4x4& b) {
 	Matrix4x4 m;
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
-			float v = 0;
-			for (int x = 0; x < 4; ++x) {
-				v += a.m[i][x] * b.m[x][j];
-			}
+			float v = 
+				a.m[i][0] * b.m[0][j] + 
+				a.m[i][1] * b.m[1][j] +
+				a.m[i][2] * b.m[2][j] +
+				a.m[i][3] * b.m[3][j];
 			m.m[i][j] = v;
 		}
 	}
@@ -221,15 +233,15 @@ Quaternion operator*(const Quaternion& q, const Quaternion& r) {
 	return Quaternion{
 		r.w*q.w - r.x*q.x - r.y*q.y - r.z*q.z,
 		r.w*q.x + r.x*q.w - r.y*q.z + r.z*q.y,
-		r.w*q.y + r.x*q.z + r.y*q.w - r.z*q.z,
+		r.w*q.y + r.x*q.z + r.y*q.w - r.z*q.x,
 		r.w*q.z - r.x*q.y + r.y*q.x + r.z*q.w
 	};
 }
 
 Vector3 operator*(const Quaternion& q, const Vector3& v) {
-	Quaternion vq(0, v.x, v.y, v.z);
-	auto vq2 = q * vq * q.conjugate();
-	return Vector3(vq2.x, vq2.y, vq2.z);
+	auto qv = Vector3(q.x, q.y, q.z);
+	auto t = cross(qv, v) * 2;
+	return v + t*q.w + cross(qv, t);
 }
 
 Quaternion Quaternion::identity{ 1.0f, 0.0f, 0.0f, 0.0f };

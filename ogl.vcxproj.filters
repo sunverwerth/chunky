@@ -42,6 +42,15 @@
     <ClCompile Include="src\Chunk.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="src\GLMesh.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Model.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLDebug.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\fs.glsl">
@@ -54,6 +63,12 @@
       <Filter>shader</Filter>
     </None>
     <None Include="assets\gui_vs.glsl">
+      <Filter>shader</Filter>
+    </None>
+    <None Include="assets\lines_fs.glsl">
+      <Filter>shader</Filter>
+    </None>
+    <None Include="assets\lines_vs.glsl">
       <Filter>shader</Filter>
     </None>
   </ItemGroup>
@@ -101,6 +116,9 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="src\perlin.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GLDebug.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

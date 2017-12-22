@@ -13,9 +13,7 @@ public:
 	Vector3 position;
 	Quaternion rotation;
 
-	~Model() {
-		if (mesh) delete mesh;
-	}
+	~Model();
 };
 
 #endif

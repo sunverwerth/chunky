@@ -78,6 +78,10 @@ public:
 
 	static Vector4 zero;
 	static Vector4 white;
+	static Vector4 red;
+	static Vector4 green;
+	static Vector4 blue;
+	static Vector4 black;
 };
 
 Vector4 operator*(const Vector4& v, float f);

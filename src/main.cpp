@@ -15,6 +15,7 @@
 #include "Camera.h"
 #include "Chunk.h"
 #include "ChunkGenerator.h"
+#include "GLDebug.h"
 #include "stb_image.h"
 
 #include <vector>
@@ -86,7 +87,7 @@ BlockType getBlockAt(const Vector3& pos) {
 BlockType getBlockAt(int x, int y, int z) {
 	Vector3 cp = getChunkPos(x, y, z);
 	auto chunk = getChunk(cp.x, cp.y, cp.z);
-	if (!chunk) return BlockType::BEDROCK;
+	if (!chunk) return BlockType::AIR;
 
 	return chunk->getBlockAt(x - cp.x*chunkSize, y - cp.y*chunkSize, z - cp.z*chunkSize);
 }
@@ -121,8 +122,8 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-	gl.width = 1200;
-	gl.height = 800;
+	gl.width = 1280;
+	gl.height = 1024;
 
 	GLFWwindow* window = glfwCreateWindow(gl.width, gl.height, "LearnOpenGL", NULL, NULL);
 	if (window == NULL)
@@ -187,6 +188,9 @@ int main() {
 
 	double lastTick = glfwGetTime();
 
+	GLDebug::init();
+	models.push_back(GLDebug::lineModel);
+
 	// render loop
 	// -----------
 	while (!glfwWindowShouldClose(window))
@@ -210,7 +214,7 @@ int main() {
 		if (backward) velocity = velocity - f * 4;
 		if (left) velocity = velocity - r * 4;
 		if (right) velocity = velocity + r * 4;
-		if (jump) velocity.y = 5;
+		if (jump) velocity.y = 6;
 		if (click) {
 			auto p = camera->position;
 			for (int i = 0; i < 100; ++i) {
@@ -266,6 +270,12 @@ int main() {
 		chunks = remaining;
 
 		for (auto& chunk : chunks) {
+			Vector3 min = Vector3(chunk->gridx*chunkSize, chunk->gridy*chunkSize, chunk->gridz*chunkSize);
+			Vector3 max = min + Vector3(chunkSize, chunkSize, chunkSize);
+			Vector4 col(Vector4::white);
+			if (chunk->isNew) col = Vector4::blue;
+			else if (!chunk->liveBlocks.empty()) col = Vector4::red;
+			GLDebug::aabb(min, max, col);
 			if (chunk->isDirty) {
 				chunk->generateModel();
 				if (chunk->isNew) {
@@ -280,7 +290,8 @@ int main() {
 
 			if (!updateChunk->liveBlocks.empty()) {
 				int i = rand() % updateChunk->liveBlocks.size();
-				auto block = updateChunk->liveBlocks.back();
+				auto block = updateChunk->liveBlocks[i];
+				updateChunk->liveBlocks[i] = updateChunk->liveBlocks.back();
 				updateChunk->liveBlocks.pop_back();
 
 				Vector3 wp(block.x + updateChunk->gridx*chunkSize, block.y + updateChunk->gridy*chunkSize, block.z + updateChunk->gridz*chunkSize);
@@ -316,13 +327,16 @@ int main() {
 				else if (type == BlockType::WATER) {
 					if (getBlockAt(wp.x, wp.y - 1, wp.z) == BlockType::AIR) {
 						setBlockAt(wp.x, wp.y - 1, wp.z, BlockType::WATER);
+						setBlockAt(wp.x, wp.y, wp.z, BlockType::AIR);
 						updateChunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y - 1, block.z, block.power });
 					}
-					for (int dx = -1; dx < 2; ++dx) {
-						for (int dz = -1; dz < 2; ++dz) {
-							if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
-								setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::WATER);
-								updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power });
+					else {
+						for (int dx = -1; dx < 2; ++dx) {
+							for (int dz = -1; dz < 2; ++dz) {
+								if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+									setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::WATER);
+									updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power });
+								}
 							}
 						}
 					}
@@ -396,7 +410,7 @@ int main() {
 		sstr << "block - X: " << qp.x << " Y: " << qp.y << " Z: " << qp.z << "\n";
 		sstr << "chunk - X: " << cp.x << " Y: " << cp.y << " Z: " << cp.z << "\n";
 		sstr << "Active blocks: " << numActive << "\n";
-		sstr << "Chunk hit ratio: " << ((long long)hits*100/(hits+misses)) << "%\n";
+		sstr << "Chunk hit ratio: " << ((long long)hits * 100 / (hits + misses)) << "%\n";
 		label->text = sstr.str();
 
 		// camera
@@ -409,6 +423,8 @@ int main() {
 		// light
 		auto lightPos = Vector3(0, 1, -4);
 		auto lightColor = Vector3(1.0f, 1.0f, 1.0f);
+
+		GLDebug::buildMesh();
 
 		// models
 		for (auto& model : models) {
@@ -450,6 +466,8 @@ int main() {
 
 			model->mesh->draw();
 		}
+		GLDebug::reset();
+
 
 		gl.clearDepth(1.0);
 
@@ -499,6 +517,9 @@ void processInput(GLFWwindow *window)
 	}
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
 		jump = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+		position = Vector3(rand(), 50, rand());
 	}
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !oldmousedown) {
 		click = true;

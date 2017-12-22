@@ -43,7 +43,7 @@ GUI::GUI() {
 void GUI::updateMesh() {
 	std::vector<GUIVertex> vertices;
 	root->generateVertices(vertices);
-	mesh->setVertices(sizeof(GUIVertex) * vertices.size(), vertices.data(), GL_STREAM_DRAW);
+	mesh->setVertices(vertices.data(), sizeof(GUIVertex), vertices.size(), GL_STREAM_DRAW);
 
 	std::vector<unsigned int> indices;
 	for (int i = 0; i < vertices.size() / 4; ++i) {
@@ -55,5 +55,5 @@ void GUI::updateMesh() {
 		indices.push_back(i * 4 + 3);
 	}
 
-	mesh->setIndices(sizeof(unsigned int) * indices.size(), indices.data(), GL_STREAM_DRAW);
+	mesh->setIndices(indices.data(), sizeof(unsigned int), indices.size(), GL_STREAM_DRAW);
 }

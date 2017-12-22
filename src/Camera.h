@@ -37,7 +37,7 @@ public:
 		if (pitch > 3.14f / 2) pitch = 3.14f / 2;
 		else if (pitch < -3.14f / 2) pitch = -3.14f / 2;
 		rotation = Quaternion::axisAngle(Vector3::up, yaw) * Quaternion::axisAngle(Vector3::right, pitch);
-		return matrixTranslation(-position) * Quaternion::axisAngle(Vector3::up, yaw) * Quaternion::axisAngle(Vector3::right, pitch);
+		return matrixTranslation(-position) * rotation.inverse();
 	}
 };
 

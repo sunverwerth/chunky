@@ -141,16 +141,21 @@
     <ClCompile Include="src\Chunk.cpp" />
     <ClCompile Include="src\glad.cpp" />
     <ClCompile Include="src\GLContext.cpp" />
+    <ClCompile Include="src\GLDebug.cpp" />
+    <ClCompile Include="src\GLMesh.cpp" />
     <ClCompile Include="src\GUI.cpp" />
     <ClCompile Include="src\lina.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Material.cpp" />
+    <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\stb_image.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\fs.glsl" />
     <None Include="assets\gui_fs.glsl" />
     <None Include="assets\gui_vs.glsl" />
+    <None Include="assets\lines_fs.glsl" />
+    <None Include="assets\lines_vs.glsl" />
     <None Include="assets\vs.glsl" />
   </ItemGroup>
   <ItemGroup>
@@ -158,6 +163,7 @@
     <ClInclude Include="src\Chunk.h" />
     <ClInclude Include="src\ChunkGenerator.h" />
     <ClInclude Include="src\GLContext.h" />
+    <ClInclude Include="src\GLDebug.h" />
     <ClInclude Include="src\GLFragmentShader.h" />
     <ClInclude Include="src\GLMesh.h" />
     <ClInclude Include="src\GLProgram.h" />

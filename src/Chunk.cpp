@@ -65,17 +65,16 @@ bool isSolid(BlockType block, bool isWater) {
 }
 
 BlockType Chunk::getBlockAt(int x, int y, int z) {
-	if (x < 0 || y < 0 || z < 0) {
-		return BlockType::AIR;
-	}
-	if (x > chunkSize - 1 || y > chunkSize - 1 || z > chunkSize - 1)
-	{
+	if (x < 0 || y < 0 || z < 0 ||x > chunkSize - 1 || y > chunkSize - 1 || z > chunkSize - 1) {
 		return BlockType::AIR;
 	}
 	return blocks[y * chunkSize*chunkSize + z * chunkSize + x];
 }
 
 void Chunk::setBlockAt(int x, int y, int z, BlockType type) {
+	if (x < 0 || y < 0 || z < 0 || x > chunkSize - 1 || y > chunkSize - 1 || z > chunkSize - 1) {
+		return;
+	}
 	if (getBlockAt(x, y, z) == type) return;
 	blocks[y * chunkSize*chunkSize + z * chunkSize + x] = type;
 	isDirty = true;
@@ -125,6 +124,7 @@ Vector4 Chunk::calcLight(int x, int y, int z) {
 
 void Chunk::generateModel() {
 	isDirty = false;
+
 	if (!model) {
 		model = new Model();
 		model->position = Vector3(gridx*chunkSize, gridy*chunkSize, gridz*chunkSize);
@@ -246,7 +246,7 @@ void Chunk::generateModel() {
 		}
 	}
 
-	model->mesh->setVertices(sizeof(Vertex)*chunkVertices.size(), chunkVertices.data(), GL_STATIC_DRAW);
+	model->mesh->setVertices(chunkVertices.data(), sizeof(Vertex), chunkVertices.size(), GL_STATIC_DRAW);
 
 	std::vector<unsigned int> chunkIndices;
 	for (int i = 0; i < chunkVertices.size() / 4; ++i) {
@@ -257,9 +257,9 @@ void Chunk::generateModel() {
 		chunkIndices.push_back(i * 4 + 3);
 		chunkIndices.push_back(i * 4 + 0);
 	}
-	model->mesh->setIndices(sizeof(unsigned int)*chunkIndices.size(), chunkIndices.data(), GL_STATIC_DRAW);
+	model->mesh->setIndices(chunkIndices.data(), sizeof(unsigned int), chunkIndices.size(), GL_STATIC_DRAW);
 
-	waterModel->mesh->setVertices(sizeof(Vertex)*waterVertices.size(), waterVertices.data(), GL_STATIC_DRAW);
+	waterModel->mesh->setVertices(waterVertices.data(), sizeof(Vertex), waterVertices.size(), GL_STATIC_DRAW);
 
 	std::vector<unsigned int> waterIndices;
 	for (int i = 0; i < waterVertices.size() / 4; ++i) {
@@ -270,7 +270,7 @@ void Chunk::generateModel() {
 		waterIndices.push_back(i * 4 + 3);
 		waterIndices.push_back(i * 4 + 0);
 	}
-	waterModel->mesh->setIndices(sizeof(unsigned int)*waterIndices.size(), waterIndices.data(), GL_STATIC_DRAW);
+	waterModel->mesh->setIndices(waterIndices.data(), sizeof(unsigned int), waterIndices.size(), GL_STATIC_DRAW);
 }
 
 Material* Chunk::chunkMaterial = nullptr;
