@@ -28,10 +28,9 @@ Chunk* getChunk(int gridx, int gridy, int gridz);
 
 void Chunk::generateBlocks(ChunkGenerator* gen) {
 	gen->init(gridx*chunkSize, gridz*chunkSize);
-	if (blocks) {
-		delete[] blocks;
+	if (!blocks) {
+		blocks = new BlockType[chunkSize*chunkSize*chunkSize];
 	}
-	blocks = new BlockType[chunkSize*chunkSize*chunkSize];
 	for (int y = 0; y < chunkSize; ++y) {
 		for (int z = 0; z < chunkSize; ++z) {
 			for (int x = 0; x < chunkSize; ++x) {
@@ -151,8 +150,10 @@ void Chunk::generateModel() {
 		});
 	}
 
-	std::vector<Vertex> chunkVertices;
-	std::vector<Vertex> waterVertices;
+	static std::vector<Vertex> chunkVertices;
+	static std::vector<Vertex> waterVertices;
+	chunkVertices.clear();
+	waterVertices.clear();
 
 	auto leftChunk = getChunk(gridx - 1, gridy, gridz);
 	auto rightChunk = getChunk(gridx + 1, gridy, gridz);
@@ -248,7 +249,8 @@ void Chunk::generateModel() {
 
 	model->mesh->setVertices(chunkVertices.data(), sizeof(Vertex), chunkVertices.size(), GL_STATIC_DRAW);
 
-	std::vector<unsigned int> chunkIndices;
+	static std::vector<unsigned int> chunkIndices;
+	chunkIndices.clear();
 	for (int i = 0; i < chunkVertices.size() / 4; ++i) {
 		chunkIndices.push_back(i * 4 + 0);
 		chunkIndices.push_back(i * 4 + 1);
@@ -261,7 +263,8 @@ void Chunk::generateModel() {
 
 	waterModel->mesh->setVertices(waterVertices.data(), sizeof(Vertex), waterVertices.size(), GL_STATIC_DRAW);
 
-	std::vector<unsigned int> waterIndices;
+	static std::vector<unsigned int> waterIndices;
+	waterIndices.clear();
 	for (int i = 0; i < waterVertices.size() / 4; ++i) {
 		waterIndices.push_back(i * 4 + 0);
 		waterIndices.push_back(i * 4 + 1);

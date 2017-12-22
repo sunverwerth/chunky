@@ -25,6 +25,9 @@ public:
 	}
 
 	Matrix4x4 getProjectionMatrix() {
+		if (fov > 3.14f - 0.1f) fov = 3.14f - 0.1f;
+		else if (fov < 0.1f) fov = 0.1f;
+
 		if (isOrthographic) {
 			return matrixOrthographic(width, height, zNear, zFar);
 		}

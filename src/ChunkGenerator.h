@@ -29,13 +29,14 @@ public:
 	void init(int sx, int sz) {
 		offsetx = sx;
 		offsetz = sz;
-		if (noise) delete[] noise;
-		noise = new double[chunkSize*chunkSize];
+		if (!noise) {
+			noise = new double[chunkSize*chunkSize];
+		}
 
 		for (int z = sz; z < sz + chunkSize; ++z) {
 			for (int x = sx; x < sx + chunkSize; ++x) {
 				float scale = perlin.noise0_1(0.0005f*x + start.x, 0.0005f*z + start.y) * 50;
-				float ground = -50 + perlin2.noise0_1(0.00005f*x + start.x, 0.00005f*z + start.y) * 100;
+				float ground = -50 + perlin2.noise0_1(0.0005f*x + start.x, 0.0005f*z + start.y) * 100;
 				float sharpness = 1.0f + pow(perlin2.noise0_1(0.005f*x + start.x, 0.005f*z + start.y), 4) * 100;
 				noise[(z - offsetz)*chunkSize + (x - offsetx)] = ground + smoothstep(perlin3.octaveNoise0_1(0.01f*x + start.x, 0.01f*z + start.y, 6), sharpness) * scale;
 			}

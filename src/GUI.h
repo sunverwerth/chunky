@@ -18,15 +18,23 @@ public:
 
 	class Widget {
 	public:
-		void generateVertices(std::vector<GUIVertex>& vertices);
-		virtual void generateOwnVertices(std::vector<GUIVertex>& vertices) {}
+		Widget(const Vector2& position): position(position) {}
+		void generateVertices(const Vector2& offset, std::vector<GUIVertex>& vertices);
+		virtual void generateOwnVertices(const Vector2& offset, std::vector<GUIVertex>& vertices) {}
+		static void GUI::Widget::quad(std::vector<GUI::GUIVertex>& vertices, const Vector2& min, const Vector2& size, const Vector2& uv, const Vector2& uvs, const Vector4& color);
 
 		Widget* parent = nullptr;
 		std::vector<Widget*> children;
-		Vector2 position = Vector2::zero;
+		Vector2 position;
 	};
 
 	class Panel : public Widget {
+	public:
+		Vector2 size;
+		Vector4 color = Vector4::white;
+
+		Panel(const Vector2& position, const Vector2& size): Widget(position), size(size) {}
+		void generateOwnVertices(const Vector2& offset, std::vector<GUIVertex>& vertices) override;
 	};
 
 	class Label : public Widget {
@@ -35,8 +43,8 @@ public:
 		float size = 8.0f;
 		Vector4 color = Vector4::white;
 
-		Label(const std::string& text) :text(text) {}
-		void generateOwnVertices(std::vector<GUIVertex>& vertices) override;
+		Label(const Vector2& position, const std::string& text) : Widget(position), text(text) {}
+		void generateOwnVertices(const Vector2& offset, std::vector<GUIVertex>& vertices) override;
 	};
 
 	GUI();

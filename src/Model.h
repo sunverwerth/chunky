@@ -12,6 +12,7 @@ public:
 	Material* material = nullptr;
 	Vector3 position;
 	Quaternion rotation;
+	float fade = 1.0f;
 
 	~Model();
 };

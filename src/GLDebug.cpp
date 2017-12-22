@@ -11,7 +11,8 @@ void GLDebug::init() {
 	lineModel->position = Vector3::zero;
 	lineModel->rotation = Quaternion::identity;
 	lineModel->material = new Material();
-	lineModel->material->alpha = false;
+	lineModel->material->depthTest = false;
+	lineModel->material->alpha = true;
 	lineModel->material->program = gl.createProgram("assets/lines_vs.glsl", "assets/lines_fs.glsl");
 	lineModel->mesh = new GLMesh({
 		{3, GL_FLOAT, sizeof(float)},

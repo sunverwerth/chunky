@@ -16,6 +16,20 @@ void Material::use() {
 		glDisable(GL_BLEND);
 	}
 
+	if (depthTest) {
+		gl.enable(GL_DEPTH_TEST);
+	}
+	else {
+		gl.disable(GL_DEPTH_TEST);
+	}
+
+	if (depthWrite) {
+		glDepthMask(GL_TRUE);
+	}
+	else {
+		glDepthMask(GL_FALSE);
+	}
+
 	program->use();
 	for (int i = 0; i < textures.size(); ++i) {
 		gl.bind(textures[i], i);

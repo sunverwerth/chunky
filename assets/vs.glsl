@@ -14,10 +14,12 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform mat4 worldView;
 uniform mat4 worldViewProjection;
+uniform float time;
 
 void main()
 {
 	worldPos = (world * vec4(aPos, 1.0f)).xyz;
+	//worldPos += vec3(sin(time+worldPos.z)+sin(time+worldPos.y), 0, cos(time+worldPos.x)+cos(time+worldPos.y))*0.1;
     gl_Position = projection * view * vec4(worldPos, 1.0f);
     TexCoord = aTexCoord;
 	Normal = aNormal;//mat3(transpose(inverse(worldView))) * aNormal;

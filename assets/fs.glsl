@@ -9,6 +9,8 @@ out vec4 FragColor;
   
 uniform sampler2D texture1;
 uniform vec3 lightColor;
+uniform vec3 fogColor;
+uniform float fade;
 
 void main()
 {
@@ -20,5 +22,6 @@ void main()
 	vec3 diff = clamp(dot(Normal, vec3(0.5,0.7,0.5)), 0, 1) * lightColor;
 	vec3 amb = vec3(0.4,0.4,0.4);
 
-    FragColor = mix(t1 * color * vec4(diff + amb, 1), vec4(0.8,0.8,1,1), clamp((gl_FragCoord.z-0.9966666)*300, 0, 1));
+	float fog = max(fade, pow(clamp(gl_FragCoord.z * 50 - 49, 0, 1), 16));
+    FragColor = mix(t1 * color * vec4(diff + amb, 1), vec4(fogColor,1), fog);
 }

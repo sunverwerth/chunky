@@ -10,7 +10,9 @@ class Material {
 public:
 	void use();
 
-	bool alpha;
+	bool alpha = false;;
+	bool depthTest = true;
+	bool depthWrite = true;
 	GLProgram* program;
 	std::vector<GLTexture*> textures;
 }; 

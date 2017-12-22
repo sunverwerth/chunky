@@ -34,6 +34,7 @@ std::string readFile(const std::string& name) {
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double dx, double dy);
 
 void error(const std::string& msg) {
 #ifdef _WIN32
@@ -101,10 +102,11 @@ void setBlockAt(int x, int y, int z, BlockType type) {
 }
 
 double time, dt;
-Vector3 position(0, 10, 0);
+Vector3 position(0.5, 10, 0.5);
 Vector3 velocity(0, 0, 0);
 Vector2 move(0, 0);
-bool forward, backward, left, right, jump, click;
+bool forward, backward, left, right, jump, click, grounded, debugInfo = false, fullScreen = false;
+bool initPlayer = true;
 
 #ifdef _WIN32
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR cmdLine, int nShowCmd) {
@@ -122,8 +124,8 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-	gl.width = 1280;
-	gl.height = 1024;
+	gl.width = 1024;
+	gl.height = 768;
 
 	GLFWwindow* window = glfwCreateWindow(gl.width, gl.height, "LearnOpenGL", NULL, NULL);
 	if (window == NULL)
@@ -164,10 +166,71 @@ int main() {
 	gui->camera->zFar = 1000.0f;
 	gui->material = new Material();
 	gui->material->alpha = true;
+	gui->material->depthTest = false;
+	gui->material->depthWrite = false;
 	gui->material->program = gl.createProgram("assets/gui_vs.glsl", "assets/gui_fs.glsl");
-	gui->material->textures.push_back(gl.loadTexture("assets/font.png"));
+	gui->material->textures.push_back(gl.loadTexture("assets/gui.png"));
 
-	GUI::Label* label = (GUI::Label*)gui->root;
+	GUI::Label* label = new GUI::Label(Vector2(0, 0), "");
+	label->color = Vector4::white;
+	gui->root->children.push_back(label);
+
+	gui->root->children.push_back(new GUI::Label(Vector2::zero, "."));
+
+	class Meter : public GUI::Widget {
+	public:
+		struct Axis {
+			bool horiz;
+			int pos;
+			Vector4 col;
+		};
+
+		Meter(int width, int height) : Widget(Vector2::zero), width(width), height(height), samples(new float[width]) {
+			std::fill(samples, samples + width, 0.0f);
+		}
+
+		void addSample(float v) {
+			samples[pos] = v;
+			pos = (pos + 1) % width;
+		}
+
+		void addAxisHorizontal(int y, const Vector4& color) {
+			axes.push_back({ true, y, color });
+		}
+
+		void addAxisVertical(int x, const Vector4& color) {
+			axes.push_back({ false, x, color });
+		}
+
+		void generateOwnVertices(const Vector2& offset, std::vector<GUI::GUIVertex>& vertices) override {
+			for (int i = 0; i < width; ++i) {
+				auto p = offset + position + Vector2(i, 0);
+				float samp = samples[(pos + i) % width];
+				quad(vertices, p, Vector2(1, samp), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), Vector4(1, 1, 1, 0.75));
+			}
+			for (auto& axis : axes) {
+				if (axis.horiz) {
+					quad(vertices, position + offset + Vector2(0, axis.pos), Vector2(width, 1), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
+				}
+				else {
+					quad(vertices, position + offset + Vector2(axis.pos, 0), Vector2(1, height), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
+				}
+			}
+		}
+
+		int width;
+		int height;
+		std::vector<Axis> axes;
+		float* samples;
+		int pos = 0;
+	};
+
+	auto meter = new Meter(200, 100);
+	meter->addAxisHorizontal(60, Vector4::blue);
+	meter->addAxisHorizontal(30, Vector4::red);
+	meter->children.push_back(new GUI::Label(Vector2(0, 34), "30"));
+	meter->children.push_back(new GUI::Label(Vector2(0, 64), "60"));
+	gui->root->children.push_back(meter);
 
 	auto chMat = new Material();
 	chMat->alpha = false;
@@ -185,6 +248,7 @@ int main() {
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetScrollCallback(window, scroll_callback);
 
 	double lastTick = glfwGetTime();
 
@@ -193,45 +257,58 @@ int main() {
 
 	// render loop
 	// -----------
+	auto fogColor = Vector3(0.8, 0.8, 1);
 	while (!glfwWindowShouldClose(window))
 	{
 		processInput(window);
 
-		gl.clearAll(Vector4(0.8f, 0.8f, 1.0f, 1.0f), 1.0);
+		gl.clearAll(Vector4(fogColor.r, fogColor.g, fogColor.b, 1.0f), 1.0);
 
 		time = glfwGetTime();
 		dt = time - lastTick;
+		double realDt = dt;
 		lastTick = time;
 
 		if (dt > 0.1) {
 			dt = 0.1;
 		}
 
-		Vector3 f(-sin(camera->yaw), 0, -cos(camera->yaw));
-		Vector3 r(cos(-camera->yaw), 0, sin(-camera->yaw));
+		auto p = camera->position;
+		bool hasBlock = false;
+		Vector3 blockPos;
+		for (int i = 0; i < 100; ++i) {
+			p = p + camera->front() * 0.1f;
+			auto fl = floor(p);
+			auto ch = getChunkPos(fl.x, fl.y, fl.z);
+			auto chunk = getChunk(ch.x, ch.y, ch.z);
+			if (chunk && chunk->getBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize) != BlockType::AIR) {
+				hasBlock = true;
+				blockPos = p;
+				//GLDebug::aabb(fl-Vector3(0.001,0.001,0.001), fl + Vector3(1.002, 1.002, 1.002), Vector4(1,1,1,0.5f));
+				break;
+			}
+		}
+
 		velocity.z = velocity.x = 0;
+		auto r = camera->right();
+		auto f = camera->front();
+		f.y = 0;
+		f.normalize();
 		if (forward) velocity = velocity + f * 4;
 		if (backward) velocity = velocity - f * 4;
 		if (left) velocity = velocity - r * 4;
 		if (right) velocity = velocity + r * 4;
-		if (jump) velocity.y = 6;
-		if (click) {
-			auto p = camera->position;
-			for (int i = 0; i < 100; ++i) {
-				p = p + camera->front() * 0.1f;
-				auto fl = floor(p);
-				auto ch = getChunkPos(fl.x, fl.y, fl.z);
-				auto chunk = getChunk(ch.x, ch.y, ch.z);
-				if (chunk && chunk->getBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize) != BlockType::AIR) {
-					chunk->setBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize, BlockType::AIR);
-					for (int x = -1; x < 2; ++x) {
-						for (int y = -1; y < 2; ++y) {
-							for (int z = -1; z < 2; ++z) {
-								chunk->liveBlocks.push_back(DynamicBlock{ (int)fl.x - (int)ch.x*chunkSize + x, (int)fl.y - (int)ch.y*chunkSize + y, (int)fl.z - (int)ch.z*chunkSize + z,1 });
-							}
-						}
+		if (grounded && jump) velocity.y = 6;
+		if (click && hasBlock) {
+			auto fl = floor(blockPos);
+			auto ch = getChunkPos(fl.x, fl.y, fl.z);
+			auto chunk = getChunk(ch.x, ch.y, ch.z);
+			chunk->setBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize, BlockType::AIR);
+			for (int x = -1; x < 2; ++x) {
+				for (int y = -1; y < 2; ++y) {
+					for (int z = -1; z < 2; ++z) {
+						chunk->liveBlocks.push_back(DynamicBlock{ (int)fl.x - (int)ch.x*chunkSize + x, (int)fl.y - (int)ch.y*chunkSize + y, (int)fl.z - (int)ch.z*chunkSize + z,1 });
 					}
-					break;
 				}
 			}
 		}
@@ -240,9 +317,9 @@ int main() {
 		auto cp = getChunkPos(qp.x, qp.y, qp.z);
 
 		std::vector<Chunk*> newChunks;
-		for (int y = -3; y < 4; ++y) {
-			for (int x = -3; x < 4; ++x) {
-				for (int z = -3; z < 4; ++z) {
+		for (int y = -1; y < 2; ++y) {
+			for (int x = -5; x < 6; ++x) {
+				for (int z = -5; z < 6; ++z) {
 					int ix = cp.x + x;
 					int iy = cp.y + y;
 					int iz = cp.z + z;
@@ -257,10 +334,10 @@ int main() {
 		std::vector<Chunk*> remaining;
 		for (auto& chunk : chunks) {
 			Vector3 pos = Vector3(chunk->gridx, chunk->gridy, chunk->gridz)*chunkSize;
-			if ((pos - position).length() > 250) {
+			if ((pos - position).length() > camera->zFar) {
 				if (chunk == lastChunk) lastChunk = nullptr;
-				models.erase(std::remove(models.begin(), models.end(), chunk->model));
-				models.erase(std::remove(models.begin(), models.end(), chunk->waterModel));
+				if (chunk->model) models.erase(std::remove(models.begin(), models.end(), chunk->model));
+				if (chunk->waterModel) models.erase(std::remove(models.begin(), models.end(), chunk->waterModel));
 				delete chunk;
 			}
 			else {
@@ -269,19 +346,35 @@ int main() {
 		}
 		chunks = remaining;
 
+		std::sort(chunks.begin(), chunks.end(), [&](Chunk* a, Chunk* b) {
+			auto d1 = (Vector3(a->gridx*chunkSize, a->gridy*chunkSize, a->gridz*chunkSize) - camera->position).lengthSq();
+			auto d2 = (Vector3(b->gridx*chunkSize, b->gridy*chunkSize, b->gridz*chunkSize) - camera->position).lengthSq();
+			return d1 < d2;
+		});
 		for (auto& chunk : chunks) {
 			Vector3 min = Vector3(chunk->gridx*chunkSize, chunk->gridy*chunkSize, chunk->gridz*chunkSize);
 			Vector3 max = min + Vector3(chunkSize, chunkSize, chunkSize);
 			Vector4 col(Vector4::white);
 			if (chunk->isNew) col = Vector4::blue;
 			else if (!chunk->liveBlocks.empty()) col = Vector4::red;
-			GLDebug::aabb(min, max, col);
+			if (debugInfo) GLDebug::aabb(min, max, col);
 			if (chunk->isDirty) {
 				chunk->generateModel();
 				if (chunk->isNew) {
 					models.push_back(chunk->model);
 					models.push_back(chunk->waterModel);
 					chunk->isNew = false;
+				}
+				if (chunk->model->mesh->numVertices > 0) break;
+			}
+		}
+
+		if (initPlayer) {
+			initPlayer = false;
+			for (int y = 300; y > -300; --y) {
+				if (getBlockAt(Vector3(position.x, y, position.z)) != BlockType::AIR) {
+					position.y = y + 1;
+					break;
 				}
 			}
 		}
@@ -344,12 +437,20 @@ int main() {
 			}
 		}
 
+		grounded = false;
 		auto floorBlock = getBlockAt(qp.x, qp.y, qp.z);
 		if (floorBlock == BlockType::AIR) {
 			velocity.y -= 15.81f*dt;
 		}
 		else if (floorBlock == BlockType::WATER) {
+			grounded = true;
 			velocity.y -= 1.5f*dt;
+			if (velocity.y > 2) {
+				velocity.y = 2;
+			}
+			if (velocity.y < -2) {
+				velocity.y = -2;
+			}
 		}
 
 		position = position + velocity * dt;
@@ -361,6 +462,7 @@ int main() {
 			if (floorBlock != BlockType::AIR && floorBlock != BlockType::WATER) {
 				velocity.y = 0;
 				position.y = qp.y + 1 + 0.001f;
+				grounded = true;
 			}
 		}
 
@@ -413,6 +515,9 @@ int main() {
 		sstr << "Chunk hit ratio: " << ((long long)hits * 100 / (hits + misses)) << "%\n";
 		label->text = sstr.str();
 
+		meter->position = label->position - Vector2(0, 150);
+		meter->addSample(1.0f / realDt);
+
 		// camera
 		camera->position = position + Vector3::up * 1.5f;
 		camera->width = gl.width;
@@ -426,9 +531,20 @@ int main() {
 
 		GLDebug::buildMesh();
 
+		std::sort(models.begin(), models.end(), [&](const Model* a, const Model* b) {
+			int ia = 1;
+			if (a->material->alpha) ia *= 100000;
+			if (!a->material->depthTest) ia *= 100000;
+			int ib = 1;
+			if (b->material->alpha) ib *= 100000;
+			if (!b->material->depthTest) ib *= 100000;
+			return ia < ib;
+		});
+
 		// models
 		for (auto& model : models) {
-			if (model->material->alpha) continue;
+			model->fade -= dt;
+			if (model->fade < 0) model->fade = 0;
 			model->material->use();
 
 			model->material->program->setUniform("view", view);
@@ -436,6 +552,9 @@ int main() {
 			model->material->program->setUniform("eyePos", camera->position);
 			model->material->program->setUniform("lightPos", lightPos);
 			model->material->program->setUniform("lightColor", lightColor);
+			model->material->program->setUniform("fogColor", fogColor);
+			model->material->program->setUniform("fade", model->fade);
+			model->material->program->setUniform("time", (float)glfwGetTime());
 
 			auto world = Matrix4x4(model->rotation);
 			world = world * matrixTranslation(model->position);
@@ -447,25 +566,6 @@ int main() {
 			model->mesh->draw();
 		}
 
-		for (auto& model : models) {
-			if (!model->material->alpha) continue;
-			model->material->use();
-
-			model->material->program->setUniform("view", view);
-			model->material->program->setUniform("projection", projection);
-			model->material->program->setUniform("eyePos", camera->position);
-			model->material->program->setUniform("lightPos", lightPos);
-			model->material->program->setUniform("lightColor", lightColor);
-
-			auto world = Matrix4x4(model->rotation);
-			world = world * matrixTranslation(model->position);
-
-			model->material->program->setUniform("world", world);
-			model->material->program->setUniform("worldView", view * world);
-			model->material->program->setUniform("worldViewProjection", projection * view * world);
-
-			model->mesh->draw();
-		}
 		GLDebug::reset();
 
 
@@ -500,7 +600,7 @@ void processInput(GLFWwindow *window)
 	static bool oldmousedown;
 	forward = backward = left = right = click = jump = false;
 
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
 	}
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
@@ -519,7 +619,25 @@ void processInput(GLFWwindow *window)
 		jump = true;
 	}
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
-		position = Vector3(rand(), 50, rand());
+		initPlayer = true;
+		position = Vector3(0.5f + rand(), 50, 0.5f + rand());
+	}
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
+		debugInfo = !debugInfo;
+	}
+	if (glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS) {
+		fullScreen = !fullScreen;
+		if (fullScreen) {
+			auto monitor = glfwGetPrimaryMonitor();
+			const GLFWvidmode * mode = glfwGetVideoMode(monitor);
+			glfwSetWindowSize(window, mode->width, mode->height);
+			glfwSetWindowPos(window, 0, 0);
+		}
+		else {
+			// Use start-up values for "windowed" mode.
+			glfwSetWindowSize(window, 1024, 768);
+			glfwSetWindowPos(window, 0, 0);
+		}
 	}
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !oldmousedown) {
 		click = true;
@@ -550,7 +668,15 @@ void mouse_callback(GLFWwindow* window, double x, double y)
 	oldy = y;
 
 	if (camera) {
-		camera->yaw -= dx*0.01f;
-		camera->pitch -= dy*0.01f;
+		camera->yaw -= dx*0.005f*camera->fov;
+		camera->pitch -= dy*0.005f*camera->fov;
+	}
+}
+
+
+void scroll_callback(GLFWwindow* window, double dx, double dy)
+{
+	if (camera) {
+		camera->fov -= dy*0.1f;
 	}
 }
