@@ -115,54 +115,56 @@ bool forward, backward, left, right, jump, click, grounded, debugInfo = false, f
 bool initPlayer = true;
 
 void updateChunk(Chunk* chunk) {
-	if (!chunk->liveBlocks.empty()) {
-		int i = rand() % chunk->liveBlocks.size();
-		auto block = chunk->liveBlocks[i];
-		chunk->liveBlocks[i] = chunk->liveBlocks.back();
-		chunk->liveBlocks.pop_back();
+	for(int i=0;i<10;++i) {
+		if (!chunk->liveBlocks.empty()) {
+			int i = rand() % chunk->liveBlocks.size();
+			auto block = chunk->liveBlocks[i];
+			chunk->liveBlocks[i] = chunk->liveBlocks.back();
+			chunk->liveBlocks.pop_back();
 
-		Vector3 wp(block.x + chunk->gridx*chunkSize, block.y + chunk->gridy*chunkSize, block.z + chunk->gridz*chunkSize);
-		auto type = getBlockAt(wp.x, wp.y, wp.z);
-		if (type == BlockType::WOOD) {
-			if (block.power > 0 && getBlockAt(wp.x, wp.y + 1, wp.z) == BlockType::AIR) {
-				setBlockAt(wp.x, wp.y + 1, wp.z, BlockType::WOOD);
-				chunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y + 1, block.z, block.power - 1 });
-			}
-			if (block.power > 0 && block.power < 5) {
-				for (int dx = -1; dx < 2; ++dx) {
-					for (int dz = -1; dz < 2; ++dz) {
-						if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
-							setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
-							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, 1 + rand() % 2 });
+			Vector3 wp(block.x + chunk->gridx*chunkSize, block.y + chunk->gridy*chunkSize, block.z + chunk->gridz*chunkSize);
+			auto type = getBlockAt(wp.x, wp.y, wp.z);
+			if (type == BlockType::WOOD) {
+				if (block.power > 0 && getBlockAt(wp.x, wp.y + 1, wp.z) == BlockType::AIR) {
+					setBlockAt(wp.x, wp.y + 1, wp.z, BlockType::WOOD);
+					chunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y + 1, block.z, block.power - 1 });
+				}
+				if (block.power > 0 && block.power < 5) {
+					for (int dx = -1; dx < 2; ++dx) {
+						for (int dz = -1; dz < 2; ++dz) {
+							if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+								setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
+								chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, 1 + rand() % 2 });
+							}
 						}
 					}
 				}
 			}
-		}
-		else if (type == BlockType::LEAVES) {
-			if (block.power > 0) {
-				for (int dx = -1; dx < 2; ++dx) {
-					for (int dz = -1; dz < 2; ++dz) {
-						if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
-							setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
-							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power - 1 });
+			else if (type == BlockType::LEAVES) {
+				if (block.power > 0) {
+					for (int dx = -1; dx < 2; ++dx) {
+						for (int dz = -1; dz < 2; ++dz) {
+							if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+								setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
+								chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power - 1 });
+							}
 						}
 					}
 				}
 			}
-		}
-		else if (type == BlockType::WATER) {
-			if (getBlockAt(wp.x, wp.y - 1, wp.z) == BlockType::AIR) {
-				setBlockAt(wp.x, wp.y - 1, wp.z, BlockType::WATER);
-				setBlockAt(wp.x, wp.y, wp.z, BlockType::AIR);
-				chunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y - 1, block.z, block.power });
-			}
-			else {
-				for (int dx = -1; dx < 2; ++dx) {
-					for (int dz = -1; dz < 2; ++dz) {
-						if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
-							setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::WATER);
-							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power });
+			else if (type == BlockType::WATER) {
+				if (getBlockAt(wp.x, wp.y - 1, wp.z) == BlockType::AIR) {
+					setBlockAt(wp.x, wp.y - 1, wp.z, BlockType::WATER);
+					setBlockAt(wp.x, wp.y, wp.z, BlockType::AIR);
+					chunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y - 1, block.z, block.power });
+				}
+				else {
+					for (int dx = -1; dx < 2; ++dx) {
+						for (int dz = -1; dz < 2; ++dz) {
+							if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+								setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::WATER);
+								chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power });
+							}
 						}
 					}
 				}
@@ -187,10 +189,12 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-	gl.width = 1024;
-	gl.height = 768;
+	gl.width = 1600;
+	gl.height = 900;
 
 	GLFWwindow* window = glfwCreateWindow(gl.width, gl.height, "LearnOpenGL", NULL, NULL);
+	glfwSetWindowPos(window, 50, 50);
+
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -214,7 +218,11 @@ int main() {
 
 	std::vector<Model*> models;
 
+	glViewport(0, 0, gl.width, gl.height);
+
 	camera = new Camera();
+	camera->width = gl.width;
+	camera->height = gl.height;
 	camera->position = position;
 	camera->rotation = Quaternion::identity;
 	camera->fov = 3.14f / 2.0f;
@@ -236,50 +244,62 @@ int main() {
 
 	GUI::Label* label = new GUI::Label(Vector2(0, 0), "");
 	label->color = Vector4::white;
-	gui->root->children.push_back(label);
+	gui->root->add(label);
 
-	gui->root->children.push_back(new GUI::Label(Vector2::zero, "."));
+	gui->root->add(new GUI::Label(Vector2::zero, "."));
 
 	class Meter : public GUI::Widget {
 	public:
 		struct Axis {
+			GUI::Label* label;
 			bool horiz;
-			int pos;
+			float pos;
 			Vector4 col;
 		};
 
-		Meter(int width, int height) : Widget(Vector2::zero), width(width), height(height), samples(new float[width]) {
-			std::fill(samples, samples + width, 0.0f);
+		Meter(const Vector2& position, const Vector2& size) : Widget(position, size), samples(new float[(int)size.x]) {
+			std::fill(samples, samples + (int)size.x, 0.0f);
 		}
 
 		void addSample(float v) {
 			samples[pos] = v;
-			pos = (pos + 1) % width;
+			pos = (pos + 1) % (int)size.x;
 		}
 
-		void addAxisHorizontal(int y, const Vector4& color) {
-			axes.push_back({ true, y, color });
+		void addAxisHorizontal(float y, const std::string& title, const Vector4& color) {
+			auto label = new GUI::Label(Vector2::zero, title);
+			add(label);
+			axes.push_back({ label, true, y, color });
 		}
 
-		void addAxisVertical(int x, const Vector4& color) {
-			axes.push_back({ false, x, color });
+		void addAxisVertical(float x, const std::string& title, const Vector4& color) {
+			auto label = new GUI::Label(Vector2::zero, title);
+			add(label);
+			axes.push_back({ label, false, x, color });
 		}
 
 		void generateOwnVertices(const Vector2& offset, std::vector<GUI::GUIVertex>& vertices) override {
+			if (watch) {
+				addSample(*watch);
+			}
+
+			quad(vertices, position + offset, size, Vector2(0, 0), Vector2(0, 0), Vector4(0, 0, 0, 0.25));
 			for (auto& axis : axes) {
 				if (axis.horiz) {
-					quad(vertices, position + offset + Vector2(0, axis.pos), Vector2(width, 1), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
+					quad(vertices, position + offset + Vector2(0, axis.pos*scale), Vector2(size.x, 1), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
+					axis.label->position = Vector2(0, axis.pos*scale + 4);
 				}
 				else {
-					quad(vertices, position + offset + Vector2(axis.pos, 0), Vector2(1, height), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
+					quad(vertices, position + offset + Vector2(axis.pos, 0), Vector2(1, size.y), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
+					axis.label->position = Vector2(axis.pos, 4);
 				}
 			}
 			float min = 999999999;
 			float max = -99999999;
-			for (int i = 1; i < width; ++i) {
+			for (int i = 1; i < (int)size.x; ++i) {
 				auto p = offset + position + Vector2(i, 0);
-				float samp = samples[(pos + i - 1) % width];
-				float samp2 = samples[(pos + i) % width];
+				float samp = samples[(pos + i - 1) % (int)size.x];
+				float samp2 = samples[(pos + i) % (int)size.x];
 				if (samp > max) max = samp;
 				if (samp < min) min = samp;
 				if (samp > samp2) {
@@ -294,30 +314,30 @@ int main() {
 				quad(vertices, p, Vector2(1, std::max(samp, 1.0f)), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), Vector4(1, 1, 1, 0.75));
 			}
 			if (autoscale && max > 0) {
-				scale = (float)height / max;
+				scale = size.y / max;
 			}
 		}
 
+		float* watch = nullptr;
 		bool autoscale = false;
 		float scale = 1.0f;
-		int width;
-		int height;
 		std::vector<Axis> axes;
 		float* samples;
 		int pos = 0;
 	};
 
-	auto meter = new Meter(200, 100);
-	meter->addAxisHorizontal(60, Vector4::blue);
-	meter->addAxisHorizontal(30, Vector4::red);
-	meter->children.push_back(new GUI::Label(Vector2(0, 34), "30"));
-	meter->children.push_back(new GUI::Label(Vector2(0, 64), "60"));
-	meter->children.push_back(new GUI::Label(Vector2(0, 100), "FPS"));
-	gui->root->children.push_back(meter);
+	float fps = 0;
+	auto meter = new Meter(Vector2::zero, Vector2(200, 50));
+	meter->addAxisHorizontal(60, "60", Vector4::blue);
+	meter->addAxisHorizontal(30, "30", Vector4::red);
+	meter->add(new GUI::Label(Vector2(0, 50), "FPS"));
+	meter->watch = &fps;
+	meter->scale = 0.5f;
+	gui->root->add(meter);
 
-	auto updateMeter = new Meter(200, 100);
-	gui->root->children.push_back(updateMeter);
-	updateMeter->children.push_back(new GUI::Label(Vector2(0, 100), "Live Blocks"));
+	auto updateMeter = new Meter(Vector2::zero, Vector2(200, 50));
+	gui->root->add(updateMeter);
+	updateMeter->add(new GUI::Label(Vector2(0, 50), "Live Blocks"));
 	updateMeter->autoscale = true;
 
 	auto chMat = new Material();
@@ -352,8 +372,9 @@ int main() {
 	{
 		time = glfwGetTime();
 		dt = time - lastTick;
-		double realDt = dt;
 		lastTick = time;
+
+		fps = 1.0f / dt;
 
 		if (dt > 0.1) {
 			dt = 0.1;
@@ -372,7 +393,9 @@ int main() {
 			auto fl = floor(p);
 			auto ch = getChunkPos(fl.x, fl.y, fl.z);
 			auto chunk = getChunk(ch.x, ch.y, ch.z);
-			if (chunk && chunk->getBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize) != BlockType::AIR) {
+			if (!chunk) continue;
+			auto block = chunk->getBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize);
+			if (block != BlockType::AIR && block != BlockType::WATER) {
 				hasBlock = true;
 				blockPos = p;
 				//GLDebug::aabb(fl-Vector3(0.001,0.001,0.001), fl + Vector3(1.002, 1.002, 1.002), Vector4(1,1,1,0.5f));
@@ -410,7 +433,7 @@ int main() {
 
 		// generate missing chunks
 		std::vector<Chunk*> newChunks;
-		for (int y = -1; y < 2; ++y) {
+		for (int y = -2; y < 2; ++y) {
 			for (int x = -5; x < 6; ++x) {
 				for (int z = -5; z < 6; ++z) {
 					int ix = cp.x + x;
@@ -420,6 +443,7 @@ int main() {
 					auto chunk = new Chunk(ix, iy, iz);
 					chunk->generateBlocks(&gen);
 					chunks.push_back(chunk);
+					break;
 				}
 			}
 		}
@@ -438,9 +462,9 @@ int main() {
 				remaining.push_back(chunk);
 			}
 		}
-		
+
 		chunks = remaining;
-		
+
 		// generate chunk meshes
 		auto myChunk = getChunk(position);
 		if (myChunk && myChunk->isDirty) {
@@ -460,12 +484,6 @@ int main() {
 			return d1 < d2;
 		});
 		for (auto& chunk : chunks) {
-			Vector3 min = Vector3(chunk->gridx*chunkSize, chunk->gridy*chunkSize, chunk->gridz*chunkSize);
-			Vector3 max = min + Vector3(chunkSize, chunkSize, chunkSize);
-			Vector4 col(Vector4::white);
-			if (chunk->isNew) col = Vector4::blue;
-			else if (!chunk->liveBlocks.empty()) col = Vector4::red;
-			if (debugInfo) GLDebug::aabb(min, max, col);
 			if (chunk->isDirty) {
 				chunk->generateModel();
 				if (chunk->isNew) {
@@ -489,7 +507,15 @@ int main() {
 
 		for (auto& cur : chunks) {
 			updateChunk(cur);
-			updateChunk(cur);
+
+			if (debugInfo) {
+				Vector3 min = Vector3(cur->gridx*chunkSize, cur->gridy*chunkSize, cur->gridz*chunkSize);
+				Vector3 max = min + Vector3(chunkSize, chunkSize, chunkSize);
+				Vector4 col(1, 1, 1, 0.5);
+				if (cur->isNew) col = Vector4(0, 0, 1, 0.5);
+				else if (!cur->liveBlocks.empty()) col = Vector4(1, 0, 0, 0.5);
+				GLDebug::aabb(min, max, col);
+			}
 		}
 
 		grounded = false;
@@ -569,17 +595,16 @@ int main() {
 		sstr << "Active blocks: " << numActive << "\n";
 		sstr << "Chunk hit ratio: " << ((long long)hits * 100 / (hits + misses)) << "%\n";
 		label->text = sstr.str();
+		label->position = Vector2(-gui->camera->width / 2, gui->camera->height / 2);
 
-		meter->position = label->position - Vector2(0, 150);
-		meter->addSample(1.0f / realDt);
 
-		updateMeter->position = meter->position - Vector2(0, 100);
+		meter->position = label->position - Vector2(0, 100);
+
+		updateMeter->position = meter->position - Vector2(0, meter->size.y + 10);
 		updateMeter->addSample(numActive);
 
 		// camera
 		camera->position = position + Vector3::up * 1.5f;
-		camera->width = gl.width;
-		camera->height = gl.height;
 		auto view = camera->getViewMatrix();
 		auto projection = camera->getProjectionMatrix();
 
@@ -601,7 +626,7 @@ int main() {
 
 		// models
 		for (auto& model : models) {
-			model->fade -= dt*2;
+			model->fade -= dt;
 			if (model->fade < 0) model->fade = 0;
 			model->material->use();
 
@@ -631,9 +656,6 @@ int main() {
 
 		gui->camera->width = gl.width;
 		gui->camera->height = gl.height;
-
-		label->position.x = -gl.width / 2;
-		label->position.y = gl.height / 2;
 
 		gui->material->use();
 		gui->material->program->setUniform("projection", gui->camera->getProjectionMatrix());
@@ -678,7 +700,7 @@ void processInput(GLFWwindow *window)
 	}
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
 		initPlayer = true;
-		position = Vector3(0.5f + rand(), 50, 0.5f + rand());
+		position = Vector3(0.5f + rand(), 100, 0.5f + rand());
 	}
 	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
 		debugInfo = !debugInfo;
@@ -710,6 +732,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	gl.width = width;
 	gl.height = height;
 	gl.viewport(0, 0, width, height);
+	camera->width = width;
+	camera->height = height;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

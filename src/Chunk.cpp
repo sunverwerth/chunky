@@ -36,7 +36,7 @@ void Chunk::generateBlocks(ChunkGenerator* gen) {
 			for (int x = 0; x < chunkSize; ++x) {
 				auto block = gen->getBlockAt(gridx*chunkSize + x, gridy*chunkSize + y, gridz*chunkSize + z);
 				if (block == BlockType::WOOD) {
-					liveBlocks.push_back(DynamicBlock{ x, y, z, 7 + rand() % 5 });
+					liveBlocks.push_back(DynamicBlock{ x, y, z, 7 + rand() % 7 });
 				}
 				blocks[y * chunkSize*chunkSize + z * chunkSize + x] = block;
 			}
@@ -162,23 +162,25 @@ void Chunk::generateModel() {
 	auto frontChunk = getChunk(gridx, gridy, gridz + 1);
 	auto backChunk = getChunk(gridx, gridy, gridz - 1);
 
-	for (int y = 0; y < chunkSize; ++y) {
-		for (int z = 0; z < chunkSize; ++z) {
-			for (int x = 0; x < chunkSize; ++x) {
+	int step = 1;
+
+	for (int y = 0; y < chunkSize; y += step) {
+		for (int z = 0; z < chunkSize; z += step) {
+			for (int x = 0; x < chunkSize; x += step) {
 				auto block = getBlockAt(x, y, z);
 				bool isWater = block == BlockType::WATER;
 				if (block == BlockType::AIR) {
 					continue;
 				}
 
-				bool renderBottom = y == 0 ? (bottomChunk ? !isSolid(bottomChunk->getBlockAt(x, chunkSize - 1, z), isWater) : false) : !isSolid(getBlockAt(x, y - 1, z), isWater);
-				bool renderTop = y == chunkSize - 1 ? (topChunk ? !isSolid(topChunk->getBlockAt(x, 0, z), isWater) : false) : !isSolid(getBlockAt(x, y + 1, z), isWater);
+				bool renderBottom = y == 0 ? (bottomChunk ? !isSolid(bottomChunk->getBlockAt(x, chunkSize - step, z), isWater) : false) : !isSolid(getBlockAt(x, y - step, z), isWater);
+				bool renderTop = y == chunkSize - step ? (topChunk ? !isSolid(topChunk->getBlockAt(x, 0, z), isWater) : false) : !isSolid(getBlockAt(x, y + step, z), isWater);
 
-				bool renderLeft = x == 0 ? (leftChunk ? !isSolid(leftChunk->getBlockAt(chunkSize - 1, y, z), isWater) : false) : !isSolid(getBlockAt(x - 1, y, z), isWater);
-				bool renderRight = x == chunkSize - 1 ? (rightChunk ? !isSolid(rightChunk->getBlockAt(0, y, z), isWater) : false) : !isSolid(getBlockAt(x + 1, y, z), isWater);
+				bool renderLeft = x == 0 ? (leftChunk ? !isSolid(leftChunk->getBlockAt(chunkSize - step, y, z), isWater) : false) : !isSolid(getBlockAt(x - step, y, z), isWater);
+				bool renderRight = x == chunkSize - step ? (rightChunk ? !isSolid(rightChunk->getBlockAt(0, y, z), isWater) : false) : !isSolid(getBlockAt(x + step, y, z), isWater);
 
-				bool renderBack = z == 0 ? (backChunk ? !isSolid(backChunk->getBlockAt(x, y, chunkSize - 1), isWater) : false) : !isSolid(getBlockAt(x, y, z - 1), isWater);
-				bool renderFront = z == chunkSize - 1 ? (frontChunk ? !isSolid(frontChunk->getBlockAt(x, y, 0), isWater) : false) : !isSolid(getBlockAt(x, y, z + 1), isWater);
+				bool renderBack = z == 0 ? (backChunk ? !isSolid(backChunk->getBlockAt(x, y, chunkSize - step), isWater) : false) : !isSolid(getBlockAt(x, y, z - step), isWater);
+				bool renderFront = z == chunkSize - step ? (frontChunk ? !isSolid(frontChunk->getBlockAt(x, y, 0), isWater) : false) : !isSolid(getBlockAt(x, y, z + step), isWater);
 
 				if (!(renderTop || renderBottom || renderFront || renderBack || renderLeft || renderRight)) continue;
 
@@ -187,7 +189,7 @@ void Chunk::generateModel() {
 
 				auto& vertices = isWater ? waterVertices : chunkVertices;
 
-				float h = isWater && renderTop ? 0.9f : 1.0f;
+				float h = isWater && renderTop ? (float)step - 0.1f : step;
 				Vector4 light(1, 1, 1, 1);
 				Vector4 dark(0.5, 0.5, 0.5, 1);
 
@@ -197,7 +199,7 @@ void Chunk::generateModel() {
 				if (renderTop) {
 					if (block == BlockType::GRASS) uvtop = Vector2(0, 1.0f - 1.0f / 16);
 
-					for (int c = 1; c < 16; ++c) {
+					for (int c = step; c < 16; c += step) {
 						if (isSolid(::getBlockAt(gridx*chunkSize + x, gridy*chunkSize + y + c, gridz*chunkSize + z), false)) {
 							color.r *= (0.5f + float(c) / 32);
 							color.g *= (0.5f + float(c) / 32);
@@ -207,48 +209,48 @@ void Chunk::generateModel() {
 					}
 
 					vertices.push_back({ Vector3(x, y + h, z), uvtop + Vector2(0,0), Vector3::up, color * calcLight(x - 1 ,y + 1,z - 1) });
-					vertices.push_back({ Vector3(x, y + h, z + 1), uvtop + Vector2(0,1.0f / 16), Vector3::up,  color * calcLight(x - 1,y + 1,z) });
-					vertices.push_back({ Vector3(x + 1, y + h, z + 1), uvtop + Vector2(1.0f / 16,1.0f / 16), Vector3::up,  color * calcLight(x,y + 1,z) });
-					vertices.push_back({ Vector3(x + 1, y + h, z), uvtop + Vector2(1.0f / 16,0), Vector3::up,  color * calcLight(x,y + 1,z - 1) });
+					vertices.push_back({ Vector3(x, y + h, z + step), uvtop + Vector2(0,1.0f / 16), Vector3::up,  color * calcLight(x - 1,y + 1,z) });
+					vertices.push_back({ Vector3(x + step, y + h, z + step), uvtop + Vector2(1.0f / 16,1.0f / 16), Vector3::up,  color * calcLight(x,y + 1,z) });
+					vertices.push_back({ Vector3(x + step, y + h, z), uvtop + Vector2(1.0f / 16,0), Vector3::up,  color * calcLight(x,y + 1,z - 1) });
 				}
 
 				// bottom
 				if (renderBottom) {
 					if (block == BlockType::GRASS) uvtop = Vector2(2.0f / 16, 1.0f - 1.0f / 16);
-					vertices.push_back({ Vector3(x + 1, y, z), uvtop + Vector2(1.0f / 16,0), Vector3::down, color * calcLight(x ,y - 2,z - 1) });
-					vertices.push_back({ Vector3(x + 1, y, z + 1), uvtop + Vector2(1.0f / 16,1.0f / 16), Vector3::down, color * calcLight(x,y - 2,z) });
-					vertices.push_back({ Vector3(x, y, z + 1), uvtop + Vector2(0,1.0f / 16), Vector3::down, color * calcLight(x - 1,y - 2,z) });
+					vertices.push_back({ Vector3(x + step, y, z), uvtop + Vector2(1.0f / 16,0), Vector3::down, color * calcLight(x ,y - 2,z - 1) });
+					vertices.push_back({ Vector3(x + step, y, z + step), uvtop + Vector2(1.0f / 16,1.0f / 16), Vector3::down, color * calcLight(x,y - 2,z) });
+					vertices.push_back({ Vector3(x, y, z + step), uvtop + Vector2(0,1.0f / 16), Vector3::down, color * calcLight(x - 1,y - 2,z) });
 					vertices.push_back({ Vector3(x, y, z), uvtop + Vector2(0,0), Vector3::down, color * calcLight(x - 1,y - 2,z - 1) });
 				}
 
 				// front
 				if (renderFront) {
-					vertices.push_back({ Vector3(x, y, z + 1), uv + Vector2(0,0), Vector3::backward, color * calcLight(x - 1,y - 1,z + 1) });
-					vertices.push_back({ Vector3(x + 1, y, z + 1), uv + Vector2(1.0f / 16,0), Vector3::backward, color * calcLight(x,y - 1,z + 1) });
-					vertices.push_back({ Vector3(x + 1, y + h, z + 1), uv + Vector2(1.0f / 16,1.0f / 16), Vector3::backward, color * calcLight(x,y,z + 1) });
-					vertices.push_back({ Vector3(x, y + h, z + 1), uv + Vector2(0, 1.0f / 16), Vector3::backward, color * calcLight(x - 1,y,z + 1) });
+					vertices.push_back({ Vector3(x, y, z + step), uv + Vector2(0,0), Vector3::backward, color * calcLight(x - 1,y - 1,z + 1) });
+					vertices.push_back({ Vector3(x + step, y, z + step), uv + Vector2(1.0f / 16,0), Vector3::backward, color * calcLight(x,y - 1,z + 1) });
+					vertices.push_back({ Vector3(x + step, y + h, z + step), uv + Vector2(1.0f / 16,1.0f / 16), Vector3::backward, color * calcLight(x,y,z + 1) });
+					vertices.push_back({ Vector3(x, y + h, z + step), uv + Vector2(0, 1.0f / 16), Vector3::backward, color * calcLight(x - 1,y,z + 1) });
 				}
 
 				// back
 				if (renderBack) {
 					vertices.push_back({ Vector3(x, y + h, z), uv + Vector2(0, 1.0f / 16), Vector3::forward, color * calcLight(x - 1,y,z - 2) });
-					vertices.push_back({ Vector3(x + 1, y + h, z), uv + Vector2(1.0f / 16,1.0f / 16), Vector3::forward, color * calcLight(x,y,z - 2) });
-					vertices.push_back({ Vector3(x + 1, y, z), uv + Vector2(1.0f / 16,0), Vector3::forward, color * calcLight(x ,y - 1,z - 2) });
+					vertices.push_back({ Vector3(x + step, y + h, z), uv + Vector2(1.0f / 16,1.0f / 16), Vector3::forward, color * calcLight(x,y,z - 2) });
+					vertices.push_back({ Vector3(x + step, y, z), uv + Vector2(1.0f / 16,0), Vector3::forward, color * calcLight(x ,y - 1,z - 2) });
 					vertices.push_back({ Vector3(x, y, z), uv + Vector2(0,0), Vector3::forward, color * calcLight(x - 1,y - 1,z - 2) });
 				}
 
 				// right
 				if (renderRight) {
-					vertices.push_back({ Vector3(x + 1, y, z), uv + Vector2(0,0), Vector3::right, color * calcLight(x + 1,y - 1,z - 1) });
-					vertices.push_back({ Vector3(x + 1, y + h, z), uv + Vector2(0,1.0f / 16), Vector3::right, color * calcLight(x + 1,y,z - 1) });
-					vertices.push_back({ Vector3(x + 1, y + h, z + 1), uv + Vector2(1.0f / 16,1.0f / 16), Vector3::right, color * calcLight(x + 1,y,z) });
-					vertices.push_back({ Vector3(x + 1, y, z + 1), uv + Vector2(1.0f / 16,0), Vector3::right, color * calcLight(x + 1,y - 1,z) });
+					vertices.push_back({ Vector3(x + step, y, z), uv + Vector2(0,0), Vector3::right, color * calcLight(x + 1,y - 1,z - 1) });
+					vertices.push_back({ Vector3(x + step, y + h, z), uv + Vector2(0,1.0f / 16), Vector3::right, color * calcLight(x + 1,y,z - 1) });
+					vertices.push_back({ Vector3(x + step, y + h, z + step), uv + Vector2(1.0f / 16,1.0f / 16), Vector3::right, color * calcLight(x + 1,y,z) });
+					vertices.push_back({ Vector3(x + step, y, z + step), uv + Vector2(1.0f / 16,0), Vector3::right, color * calcLight(x + 1,y - 1,z) });
 				}
 
 				// left
 				if (renderLeft) {
-					vertices.push_back({ Vector3(x, y, z + 1), uv + Vector2(0, 0), Vector3::left, color * calcLight(x - 2,y - 1,z) });
-					vertices.push_back({ Vector3(x, y + h, z + 1), uv + Vector2(0, 1.0f / 16), Vector3::left, color * calcLight(x - 2,y ,z) });
+					vertices.push_back({ Vector3(x, y, z + step), uv + Vector2(0, 0), Vector3::left, color * calcLight(x - 2,y - 1,z) });
+					vertices.push_back({ Vector3(x, y + h, z + step), uv + Vector2(0, 1.0f / 16), Vector3::left, color * calcLight(x - 2,y ,z) });
 					vertices.push_back({ Vector3(x, y + h, z), uv + Vector2(1.0f / 16, 1.0f / 16), Vector3::left, color * calcLight(x - 2,y ,z - 1) });
 					vertices.push_back({ Vector3(x, y, z), uv + Vector2(1.0f / 16,0), Vector3::left, color * calcLight(x - 2,y - 1,z - 1) });
 				}

@@ -22,15 +22,28 @@ void GUI::Widget::generateVertices(const Vector2& offset, std::vector<GUIVertex>
 	}
 }
 
+void GUI::Widget::add(GUI::Widget* child) {
+	if (child->parent) child->parent->remove(child);
+	children.push_back(child);
+	child->parent = this;
+}
+
+void GUI::Widget::remove(GUI::Widget* child) {
+	auto it = std::find(children.begin(), children.end(), child);
+	if (it == children.end()) return;
+	children.erase(it);
+	child->parent = nullptr;
+}
+
 void GUI::Label::generateOwnVertices(const Vector2& offset, std::vector<GUIVertex>& vertices) {
 	float dtex = 1.0f / 32;
-	Vector2 p = Vector2(position.x, position.y - size) + offset;
+	Vector2 p = Vector2(position.x, position.y - fontSize) + offset;
 
 	for (int i = 0; i < text.size(); ++i) {
 		char ch = text[i];
 		if (ch == '\n') {
 			p.x = position.x;
-			p.y -= size;
+			p.y -= fontSize;
 			continue;
 		}
 		Vector2 uv(dtex * (ch % 16), 1.0f - dtex * (ch / 16 + 1));
@@ -39,12 +52,12 @@ void GUI::Label::generateOwnVertices(const Vector2& offset, std::vector<GUIVerte
 		for (int x = -1; x < 2; ++x) {
 			for (int y = -1; y < 2; ++y) {
 				if (x == 0 && y == 0) continue;
-				quad(vertices, p + Vector2(x, y), Vector2(size, size), uv, Vector2(dtex, dtex), border);
+				quad(vertices, p + Vector2(x, y), Vector2(fontSize, fontSize), uv, Vector2(dtex, dtex), border);
 			}
 		}
-		quad(vertices, p, Vector2(size, size), uv, Vector2(dtex, dtex), color);
+		quad(vertices, p, Vector2(fontSize, fontSize), uv, Vector2(dtex, dtex), color);
 
-		p.x += size;
+		p.x += fontSize;
 	}
 }
 
@@ -67,7 +80,7 @@ void GUI::Panel::generateOwnVertices(const Vector2& offset, std::vector<GUIVerte
 }
 
 GUI::GUI() {
-	root = new Widget(Vector2::zero);
+	root = new Widget(Vector2::zero, Vector2::zero);
 
 	mesh = new GLMesh({
 		{ 2, GL_FLOAT, sizeof(float) },
