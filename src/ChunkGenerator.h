@@ -55,7 +55,7 @@ public:
 
 		if (y > top) {
 			if (y > waterLevel) {
-				if (y == top + 1 && (rand() % 300) == 0) {
+				if (y == top + 1 && (rand() % 15) == 0) {
 					//return BlockType::WOOD;
 				}
 				return BlockType::AIR;
@@ -66,6 +66,9 @@ public:
 			if (y > waterLevel) return BlockType::GRASS;
 			else if (y == waterLevel) return BlockType::SAND;
 			else return BlockType::DIRT;
+		}
+		else if (y > top - 4) {
+			return BlockType::DIRT;
 		}
 		else {
 			auto chance = rand() % 100;

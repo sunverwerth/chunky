@@ -36,13 +36,13 @@ void Chunk::generateBlocks(ChunkGenerator* gen) {
 			for (int x = 0; x < chunkSize; ++x) {
 				auto block = gen->getBlockAt(gridx*chunkSize + x, gridy*chunkSize + y, gridz*chunkSize + z);
 				if (block == BlockType::WOOD) {
-					liveBlocks.push_back(DynamicBlock{ x, y, z, 10 });
+					liveBlocks.push_back(DynamicBlock{ x, y, z, 7 + rand() % 5 });
 				}
 				blocks[y * chunkSize*chunkSize + z * chunkSize + x] = block;
 			}
 		}
 	}
-	
+
 	/*std::stringstream sstr;
 	sstr << std::setfill('0') << std::setw(8) << std::hex << gridx;
 	sstr << std::setfill('0') << std::setw(8) << std::hex << gridy;
@@ -64,7 +64,7 @@ bool isSolid(BlockType block, bool isWater) {
 }
 
 BlockType Chunk::getBlockAt(int x, int y, int z) {
-	if (x < 0 || y < 0 || z < 0 ||x > chunkSize - 1 || y > chunkSize - 1 || z > chunkSize - 1) {
+	if (x < 0 || y < 0 || z < 0 || x > chunkSize - 1 || y > chunkSize - 1 || z > chunkSize - 1) {
 		return BlockType::AIR;
 	}
 	return blocks[y * chunkSize*chunkSize + z * chunkSize + x];
@@ -111,13 +111,13 @@ Vector4 Chunk::calcLight(int x, int y, int z) {
 	for (int i = 0; i < 2; ++i) {
 		for (int j = 0; j < 2; ++j) {
 			for (int k = 0; k < 2; ++k) {
-				if (isSolid(::getBlockAt(sx + x + i, sy + y + j, sz + z + k), false)) {
+				if (!isSolid(::getBlockAt(sx + x + i, sy + y + j, sz + z + k), false)) {
 					++num;
 				}
 			}
 		}
 	}
-	float l = 1.0f - (float)num / 8;
+	float l = (float)num / 8;
 	return Vector4(l, l, l, 1);
 }
 
@@ -196,6 +196,15 @@ void Chunk::generateModel() {
 				// top
 				if (renderTop) {
 					if (block == BlockType::GRASS) uvtop = Vector2(0, 1.0f - 1.0f / 16);
+
+					for (int c = 1; c < 16; ++c) {
+						if (isSolid(::getBlockAt(gridx*chunkSize + x, gridy*chunkSize + y + c, gridz*chunkSize + z), false)) {
+							color.r *= (0.5f + float(c) / 32);
+							color.g *= (0.5f + float(c) / 32);
+							color.b *= (0.5f + float(c) / 32);
+							break;
+						}
+					}
 
 					vertices.push_back({ Vector3(x, y + h, z), uvtop + Vector2(0,0), Vector3::up, color * calcLight(x - 1 ,y + 1,z - 1) });
 					vertices.push_back({ Vector3(x, y + h, z + 1), uvtop + Vector2(0,1.0f / 16), Vector3::up,  color * calcLight(x - 1,y + 1,z) });

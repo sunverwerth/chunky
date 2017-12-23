@@ -80,6 +80,12 @@ Vector3 floor(const Vector3& pos) {
 	return Vector3(std::floorf(pos.x), std::floorf(pos.y), std::floorf(pos.z));
 }
 
+Chunk* getChunk(const Vector3& pos) {
+	auto fl = floor(pos);
+	auto cp = getChunkPos(pos.x, pos.y, pos.z);
+	return getChunk(cp.x, cp.y, cp.z);
+}
+
 BlockType getBlockAt(const Vector3& pos) {
 	auto qp = floor(pos);
 	return getBlockAt(qp.x, qp.y, qp.z);
@@ -107,6 +113,63 @@ Vector3 velocity(0, 0, 0);
 Vector2 move(0, 0);
 bool forward, backward, left, right, jump, click, grounded, debugInfo = false, fullScreen = false;
 bool initPlayer = true;
+
+void updateChunk(Chunk* chunk) {
+	if (!chunk->liveBlocks.empty()) {
+		int i = rand() % chunk->liveBlocks.size();
+		auto block = chunk->liveBlocks[i];
+		chunk->liveBlocks[i] = chunk->liveBlocks.back();
+		chunk->liveBlocks.pop_back();
+
+		Vector3 wp(block.x + chunk->gridx*chunkSize, block.y + chunk->gridy*chunkSize, block.z + chunk->gridz*chunkSize);
+		auto type = getBlockAt(wp.x, wp.y, wp.z);
+		if (type == BlockType::WOOD) {
+			if (block.power > 0 && getBlockAt(wp.x, wp.y + 1, wp.z) == BlockType::AIR) {
+				setBlockAt(wp.x, wp.y + 1, wp.z, BlockType::WOOD);
+				chunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y + 1, block.z, block.power - 1 });
+			}
+			if (block.power > 0 && block.power < 5) {
+				for (int dx = -1; dx < 2; ++dx) {
+					for (int dz = -1; dz < 2; ++dz) {
+						if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+							setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
+							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, 2 + rand() % 2 });
+						}
+					}
+				}
+			}
+		}
+		else if (type == BlockType::LEAVES) {
+			if (block.power > 0) {
+				for (int dx = -1; dx < 2; ++dx) {
+					for (int dz = -1; dz < 2; ++dz) {
+						if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+							setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
+							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power - 1 });
+						}
+					}
+				}
+			}
+		}
+		else if (type == BlockType::WATER) {
+			if (getBlockAt(wp.x, wp.y - 1, wp.z) == BlockType::AIR) {
+				setBlockAt(wp.x, wp.y - 1, wp.z, BlockType::WATER);
+				setBlockAt(wp.x, wp.y, wp.z, BlockType::AIR);
+				chunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y - 1, block.z, block.power });
+			}
+			else {
+				for (int dx = -1; dx < 2; ++dx) {
+					for (int dz = -1; dz < 2; ++dz) {
+						if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
+							setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::WATER);
+							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power });
+						}
+					}
+				}
+			}
+		}
+	}
+}
 
 #ifdef _WIN32
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR cmdLine, int nShowCmd) {
@@ -232,6 +295,9 @@ int main() {
 	meter->children.push_back(new GUI::Label(Vector2(0, 64), "60"));
 	gui->root->children.push_back(meter);
 
+	auto updateMeter = new Meter(200, 100);
+	gui->root->children.push_back(updateMeter);
+
 	auto chMat = new Material();
 	chMat->alpha = false;
 	chMat->program = gl.createProgram("assets/vs.glsl", "assets/fs.glsl");
@@ -273,6 +339,7 @@ int main() {
 			dt = 0.1;
 		}
 
+		// raycast block
 		auto p = camera->position;
 		bool hasBlock = false;
 		Vector3 blockPos;
@@ -289,6 +356,7 @@ int main() {
 			}
 		}
 
+		// input
 		velocity.z = velocity.x = 0;
 		auto r = camera->right();
 		auto f = camera->front();
@@ -316,6 +384,7 @@ int main() {
 		auto qp = floor(position);
 		auto cp = getChunkPos(qp.x, qp.y, qp.z);
 
+		// generate missing chunks
 		std::vector<Chunk*> newChunks;
 		for (int y = -1; y < 2; ++y) {
 			for (int x = -5; x < 6; ++x) {
@@ -331,6 +400,7 @@ int main() {
 			}
 		}
 
+		// remove chunks that are too far away
 		std::vector<Chunk*> remaining;
 		for (auto& chunk : chunks) {
 			Vector3 pos = Vector3(chunk->gridx, chunk->gridy, chunk->gridz)*chunkSize;
@@ -344,11 +414,26 @@ int main() {
 				remaining.push_back(chunk);
 			}
 		}
+		
 		chunks = remaining;
+		
+		// generate chunk meshes
+		auto myChunk = getChunk(position);
+		if (myChunk && myChunk->isDirty) {
+			myChunk->generateModel();
+			if (myChunk->isNew) {
+				models.push_back(myChunk->model);
+				models.push_back(myChunk->waterModel);
+				myChunk->isNew = false;
+			}
+		}
+
 
 		std::sort(chunks.begin(), chunks.end(), [&](Chunk* a, Chunk* b) {
 			auto d1 = (Vector3(a->gridx*chunkSize, a->gridy*chunkSize, a->gridz*chunkSize) - camera->position).lengthSq();
 			auto d2 = (Vector3(b->gridx*chunkSize, b->gridy*chunkSize, b->gridz*chunkSize) - camera->position).lengthSq();
+			if (a->isNew) d1 *= 0.001f;
+			if (b->isNew) d2 *= 0.001f;
 			return d1 < d2;
 		});
 		for (auto& chunk : chunks) {
@@ -379,62 +464,9 @@ int main() {
 			}
 		}
 
-		for (auto& updateChunk : chunks) {
-
-			if (!updateChunk->liveBlocks.empty()) {
-				int i = rand() % updateChunk->liveBlocks.size();
-				auto block = updateChunk->liveBlocks[i];
-				updateChunk->liveBlocks[i] = updateChunk->liveBlocks.back();
-				updateChunk->liveBlocks.pop_back();
-
-				Vector3 wp(block.x + updateChunk->gridx*chunkSize, block.y + updateChunk->gridy*chunkSize, block.z + updateChunk->gridz*chunkSize);
-				auto type = getBlockAt(wp.x, wp.y, wp.z);
-				if (type == BlockType::WOOD) {
-					if (block.power > 0 && getBlockAt(wp.x, wp.y + 1, wp.z) == BlockType::AIR) {
-						setBlockAt(wp.x, wp.y + 1, wp.z, BlockType::WOOD);
-						updateChunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y + 1, block.z, block.power - 1 });
-					}
-					if (block.power > 0 && block.power < 8) {
-						for (int dx = -1; dx < 2; ++dx) {
-							for (int dz = -1; dz < 2; ++dz) {
-								if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
-									setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
-									updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power / 4 });
-								}
-							}
-						}
-					}
-				}
-				else if (type == BlockType::LEAVES) {
-					if (block.power > 0) {
-						for (int dx = -1; dx < 2; ++dx) {
-							for (int dz = -1; dz < 2; ++dz) {
-								if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
-									setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
-									updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power - 1 });
-								}
-							}
-						}
-					}
-				}
-				else if (type == BlockType::WATER) {
-					if (getBlockAt(wp.x, wp.y - 1, wp.z) == BlockType::AIR) {
-						setBlockAt(wp.x, wp.y - 1, wp.z, BlockType::WATER);
-						setBlockAt(wp.x, wp.y, wp.z, BlockType::AIR);
-						updateChunk->liveBlocks.push_back(DynamicBlock{ block.x, block.y - 1, block.z, block.power });
-					}
-					else {
-						for (int dx = -1; dx < 2; ++dx) {
-							for (int dz = -1; dz < 2; ++dz) {
-								if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
-									setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::WATER);
-									updateChunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, block.power });
-								}
-							}
-						}
-					}
-				}
-			}
+		for (auto& cur : chunks) {
+			updateChunk(cur);
+			updateChunk(cur);
 		}
 
 		grounded = false;
@@ -517,6 +549,9 @@ int main() {
 
 		meter->position = label->position - Vector2(0, 150);
 		meter->addSample(1.0f / realDt);
+
+		updateMeter->position = meter->position - Vector2(0, 100);
+		updateMeter->addSample(numActive * 0.001f);
 
 		// camera
 		camera->position = position + Vector3::up * 1.5f;

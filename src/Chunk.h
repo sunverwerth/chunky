@@ -14,7 +14,7 @@ enum class BlockType : unsigned char {
 	GRASS,
 	PLANKS,
 	STEPS,
-	SMOOTH_STONE,
+	CLAY,
 	BRICKS,
 	TNT,
 	COBBLE = 16,
