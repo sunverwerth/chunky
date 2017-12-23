@@ -26,6 +26,7 @@ enum class BlockType : unsigned char {
 	IRON_ORE,
 	COAL_ORE,
 	LEAVES = 53,
+	SNOW = 66,
 	WATER = 205
 };
 

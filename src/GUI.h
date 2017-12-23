@@ -21,7 +21,8 @@ public:
 		Widget(const Vector2& position): position(position) {}
 		void generateVertices(const Vector2& offset, std::vector<GUIVertex>& vertices);
 		virtual void generateOwnVertices(const Vector2& offset, std::vector<GUIVertex>& vertices) {}
-		static void GUI::Widget::quad(std::vector<GUI::GUIVertex>& vertices, const Vector2& min, const Vector2& size, const Vector2& uv, const Vector2& uvs, const Vector4& color);
+		static void quad(std::vector<GUI::GUIVertex>& vertices, const Vector2& min, const Vector2& size, const Vector2& uv, const Vector2& uvs, const Vector4& color);
+		static void line(std::vector<GUI::GUIVertex>& vertices, const Vector2& from, const Vector2& to, const Vector2& uv, const Vector2& uvs, const Vector4& color);
 
 		Widget* parent = nullptr;
 		std::vector<Widget*> children;

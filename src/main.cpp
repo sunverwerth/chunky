@@ -133,7 +133,7 @@ void updateChunk(Chunk* chunk) {
 					for (int dz = -1; dz < 2; ++dz) {
 						if (getBlockAt(wp.x + dx, wp.y, wp.z + dz) == BlockType::AIR) {
 							setBlockAt(wp.x + dx, wp.y, wp.z + dz, BlockType::LEAVES);
-							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, 2 + rand() % 2 });
+							chunk->liveBlocks.push_back(DynamicBlock{ block.x + dx, block.y, block.z + dz, 1 + rand() % 2 });
 						}
 					}
 				}
@@ -266,11 +266,6 @@ int main() {
 		}
 
 		void generateOwnVertices(const Vector2& offset, std::vector<GUI::GUIVertex>& vertices) override {
-			for (int i = 0; i < width; ++i) {
-				auto p = offset + position + Vector2(i, 0);
-				float samp = samples[(pos + i) % width];
-				quad(vertices, p, Vector2(1, samp), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), Vector4(1, 1, 1, 0.75));
-			}
 			for (auto& axis : axes) {
 				if (axis.horiz) {
 					quad(vertices, position + offset + Vector2(0, axis.pos), Vector2(width, 1), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
@@ -279,8 +274,32 @@ int main() {
 					quad(vertices, position + offset + Vector2(axis.pos, 0), Vector2(1, height), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
 				}
 			}
+			float min = 999999999;
+			float max = -99999999;
+			for (int i = 1; i < width; ++i) {
+				auto p = offset + position + Vector2(i, 0);
+				float samp = samples[(pos + i - 1) % width];
+				float samp2 = samples[(pos + i) % width];
+				if (samp > max) max = samp;
+				if (samp < min) min = samp;
+				if (samp > samp2) {
+					p.y += samp2 * scale;
+					samp = samp - samp2;
+				}
+				else {
+					p.y += samp * scale;
+					samp = samp2 - samp;
+				}
+				samp *= scale;
+				quad(vertices, p, Vector2(1, std::max(samp, 1.0f)), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), Vector4(1, 1, 1, 0.75));
+			}
+			if (autoscale && max > 0) {
+				scale = (float)height / max;
+			}
 		}
 
+		bool autoscale = false;
+		float scale = 1.0f;
 		int width;
 		int height;
 		std::vector<Axis> axes;
@@ -293,10 +312,13 @@ int main() {
 	meter->addAxisHorizontal(30, Vector4::red);
 	meter->children.push_back(new GUI::Label(Vector2(0, 34), "30"));
 	meter->children.push_back(new GUI::Label(Vector2(0, 64), "60"));
+	meter->children.push_back(new GUI::Label(Vector2(0, 100), "FPS"));
 	gui->root->children.push_back(meter);
 
 	auto updateMeter = new Meter(200, 100);
 	gui->root->children.push_back(updateMeter);
+	updateMeter->children.push_back(new GUI::Label(Vector2(0, 100), "Live Blocks"));
+	updateMeter->autoscale = true;
 
 	auto chMat = new Material();
 	chMat->alpha = false;
@@ -321,15 +343,13 @@ int main() {
 	GLDebug::init();
 	models.push_back(GLDebug::lineModel);
 
+	//glfwSwapInterval(0);
+
 	// render loop
 	// -----------
 	auto fogColor = Vector3(0.8, 0.8, 1);
 	while (!glfwWindowShouldClose(window))
 	{
-		processInput(window);
-
-		gl.clearAll(Vector4(fogColor.r, fogColor.g, fogColor.b, 1.0f), 1.0);
-
 		time = glfwGetTime();
 		dt = time - lastTick;
 		double realDt = dt;
@@ -338,6 +358,10 @@ int main() {
 		if (dt > 0.1) {
 			dt = 0.1;
 		}
+
+		processInput(window);
+
+		gl.clearAll(Vector4(fogColor.r, fogColor.g, fogColor.b, 1.0f), 1.0);
 
 		// raycast block
 		auto p = camera->position;
@@ -427,7 +451,6 @@ int main() {
 				myChunk->isNew = false;
 			}
 		}
-
 
 		std::sort(chunks.begin(), chunks.end(), [&](Chunk* a, Chunk* b) {
 			auto d1 = (Vector3(a->gridx*chunkSize, a->gridy*chunkSize, a->gridz*chunkSize) - camera->position).lengthSq();
@@ -551,7 +574,7 @@ int main() {
 		meter->addSample(1.0f / realDt);
 
 		updateMeter->position = meter->position - Vector2(0, 100);
-		updateMeter->addSample(numActive * 0.001f);
+		updateMeter->addSample(numActive);
 
 		// camera
 		camera->position = position + Vector3::up * 1.5f;
@@ -578,7 +601,7 @@ int main() {
 
 		// models
 		for (auto& model : models) {
-			model->fade -= dt;
+			model->fade -= dt*2;
 			if (model->fade < 0) model->fade = 0;
 			model->material->use();
 

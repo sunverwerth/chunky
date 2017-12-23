@@ -4,7 +4,7 @@
 #include "perlin.h"
 #include "Chunk.h"
 
-static float smoothstep(float v, float p) {
+static float ease(float v, float p) {
 	if (v > 0.5f) {
 		v = (v - 0.5f) * 2;
 		return (1.0f - powf(1.0f - v, p))*0.5f + 0.5f;
@@ -38,7 +38,7 @@ public:
 				float scale = perlin.noise0_1(0.0005f*x + start.x, 0.0005f*z + start.y) * 50;
 				float ground = -50 + perlin2.noise0_1(0.0005f*x + start.x, 0.0005f*z + start.y) * 100;
 				float sharpness = 1.0f + pow(perlin2.noise0_1(0.005f*x + start.x, 0.005f*z + start.y), 4) * 100;
-				noise[(z - offsetz)*chunkSize + (x - offsetx)] = ground + smoothstep(perlin3.octaveNoise0_1(0.01f*x + start.x, 0.01f*z + start.y, 6), sharpness) * scale;
+				noise[(z - offsetz)*chunkSize + (x - offsetx)] = ground + ease(perlin3.octaveNoise0_1(0.01f*x + start.x, 0.01f*z + start.y, 6), sharpness) * scale;
 			}
 		}
 	}
@@ -55,8 +55,8 @@ public:
 
 		if (y > top) {
 			if (y > waterLevel) {
-				if (y == top + 1 && (rand() % 15) == 0) {
-					//return BlockType::WOOD;
+				if (y == top + 1 && (rand() % 100) == 0) {
+					return BlockType::WOOD;
 				}
 				return BlockType::AIR;
 			}

@@ -8,6 +8,13 @@ void GUI::Widget::quad(std::vector<GUI::GUIVertex>& vertices, const Vector2& min
 	vertices.push_back({ min, uv, color });
 }
 
+void GUI::Widget::line(std::vector<GUI::GUIVertex>& vertices, const Vector2& from, const Vector2& to, const Vector2& uv, const Vector2& uvs, const Vector4& color) {
+	vertices.push_back({ Vector2(to.x, to.y), uv + Vector2(uvs.x, 0.0f), color });
+	vertices.push_back({ Vector2(to.x, to.y + 2), uv + Vector2(uvs.x, uvs.y), color });
+	vertices.push_back({ Vector2(from.x, to.y + 2), uv + Vector2(0.0f, uvs.y), color });
+	vertices.push_back({ Vector2(from.x, from.y), uv, color });
+}
+
 void GUI::Widget::generateVertices(const Vector2& offset, std::vector<GUIVertex>& vertices) {
 	generateOwnVertices(offset, vertices);
 	for (auto& ch : children) {
