@@ -1,5 +1,5 @@
 CC=g++
-CXXFLAGS=-std=c++11 -ldl -lglfw -lGL -lglut -g -MMD -MP
+CXXFLAGS=-std=c++11 -framework OpenGL -ldl -lglfw -lglut -g -MMD -MP
 SRCDIR=src
 SRCDIRS=$(shell find $(SRCDIR) -type d)
 OBJDIR=obj

@@ -107,7 +107,7 @@ void setBlockAt(int x, int y, int z, BlockType type) {
 	chunk->setBlockAt(x - cp.x*chunkSize, y - cp.y*chunkSize, z - cp.z*chunkSize, type);
 }
 
-double time, dt;
+double currentTime, dt;
 Vector3 position(0.5, 10, 0.5);
 Vector3 velocity(0, 0, 0);
 Vector2 move(0, 0);
@@ -194,6 +194,7 @@ int main() {
 
 	GLFWwindow* window = glfwCreateWindow(gl.width, gl.height, "LearnOpenGL", NULL, NULL);
 	glfwSetWindowPos(window, 50, 50);
+	glfwGetFramebufferSize(window, &gl.width, &gl.height);
 
 	if (window == NULL)
 	{
@@ -370,9 +371,9 @@ int main() {
 	auto fogColor = Vector3(0.8, 0.8, 1);
 	while (!glfwWindowShouldClose(window))
 	{
-		time = glfwGetTime();
-		dt = time - lastTick;
-		lastTick = time;
+		currentTime = glfwGetTime();
+		dt = currentTime - lastTick;
+		lastTick = currentTime;
 
 		fps = 1.0f / dt;
 
@@ -413,7 +414,7 @@ int main() {
 		if (backward) velocity = velocity - f * 4;
 		if (left) velocity = velocity - r * 4;
 		if (right) velocity = velocity + r * 4;
-		if (grounded && jump) velocity.y = 6;
+		if (/*grounded &&*/ jump) velocity.y = 6;
 		if (click && hasBlock) {
 			auto fl = floor(blockPos);
 			auto ch = getChunkPos(fl.x, fl.y, fl.z);
@@ -654,8 +655,8 @@ int main() {
 
 		gl.clearDepth(1.0);
 
-		gui->camera->width = gl.width;
-		gui->camera->height = gl.height;
+		gui->camera->width = gl.width/2;
+		gui->camera->height = gl.height/2;
 
 		gui->material->use();
 		gui->material->program->setUniform("projection", gui->camera->getProjectionMatrix());
@@ -700,7 +701,7 @@ void processInput(GLFWwindow *window)
 	}
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
 		initPlayer = true;
-		position = Vector3(0.5f + rand(), 100, 0.5f + rand());
+		position = Vector3(0.5f + rand()%65536, 100, 0.5f + rand()%65536);
 	}
 	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
 		debugInfo = !debugInfo;

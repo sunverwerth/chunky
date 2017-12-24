@@ -3,6 +3,7 @@
 
 #include "lina.h"
 #include <vector>
+#include <string>
 
 class Camera;
 class Material;
