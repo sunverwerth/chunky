@@ -1,5 +1,6 @@
 CC=g++
-CXXFLAGS=-std=c++11 -framework OpenGL -ldl -lglfw -lglut -g -MMD -MP
+LNFLAGS=-lGL -ldl -lglfw -lglut
+CXXFLAGS=-std=c++11 -g -MMD -MP
 SRCDIR=src
 SRCDIRS=$(shell find $(SRCDIR) -type d)
 OBJDIR=obj
@@ -10,6 +11,11 @@ OBJ=$(patsubst $(SRCDIR)/%,$(OBJDIR)/%,$(_OBJ))
 DEPS = ${OBJ:.o=.d}
 LIBS=-lm
 
+TARGETOS := $(shell uname -s)
+ifeq ($(TARGETOS), Darwin)
+	LNFLAGS=-framework OpenGL -ldl -lglfw -lglut
+endif
+
 .PHONY: clean tutorial
 
 all: tutorial
@@ -17,7 +23,7 @@ all: tutorial
 tutorial: bin/tutorial
 
 bin/tutorial: $(OBJ)
-	$(CC) $^ $(CXXFLAGS) -o $@
+	$(CC) $^ $(CXXFLAGS) $(LNFLAGS) -o $@
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@[ -d $(@D) ] || mkdir -p $(@D)

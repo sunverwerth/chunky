@@ -4,14 +4,14 @@
 #include "perlin.h"
 #include "Chunk.h"
 
-static float ease(float v, float p) {
-	if (v > 0.5f) {
-		v = (v - 0.5f) * 2;
-		return (1.0f - powf(1.0f - v, p))*0.5f + 0.5f;
+static double ease(double v, double p) {
+	if (v > 0.5) {
+		v = (v - 0.5) * 2;
+		return (1.0 - pow(1.0 - v, p))*0.5 + 0.5;
 	}
 	else {
 		v *= 2;
-		return powf(v, p) * 0.5f;
+		return pow(v, p) * 0.5;
 	}
 }
 
@@ -45,8 +45,8 @@ public:
 
 	ChunkGenerator(unsigned int seed) : perlin(seed), perlin2(seed + 1), perlin3(seed + 2) {
 		srand(seed);
-		start.x = (double)rand() / 100;
-		start.y = (double)rand() / 100;
+		start.x = (double)(rand() % 10000)/100;
+		start.y = (double)(rand() % 10000)/100;
 	}
 
 	virtual ~ChunkGenerator() {}
@@ -57,10 +57,10 @@ public:
 		if (y > top) {
 			if (y > waterLevel) {
 				if (!snow && y == top + 1) {
-					double trees = perlin.noise0_1(0.0075f*x + start.x, 0.0075f*z + start.y);
-					if (trees > 0.5f) {
-						trees = (trees - 0.5f) * 2;
-						trees *= 0.1f;
+					double trees = perlin.noise0_1(0.0075*x + start.x, 0.0075*z + start.y);
+					if (trees > 0.5) {
+						trees = (trees - 0.5) * 2;
+						trees *= 0.1;
 						if ((double)rand() / RAND_MAX < trees) return BlockType::WOOD;
 					}
 				}

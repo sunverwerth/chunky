@@ -17,6 +17,7 @@
 #include "ChunkGenerator.h"
 #include "GLDebug.h"
 #include "stb_image.h"
+#include "Graph.h"
 
 #include <vector>
 #include <iostream>
@@ -249,86 +250,9 @@ int main() {
 
 	gui->root->add(new GUI::Label(Vector2::zero, "."));
 
-	class Meter : public GUI::Widget {
-	public:
-		struct Axis {
-			GUI::Label* label;
-			bool horiz;
-			float pos;
-			Vector4 col;
-		};
-
-		Meter(const Vector2& position, const Vector2& size) : Widget(position, size), samples(new float[(int)size.x]) {
-			std::fill(samples, samples + (int)size.x, 0.0f);
-		}
-
-		void addSample(float v) {
-			samples[pos] = v;
-			pos = (pos + 1) % (int)size.x;
-		}
-
-		void addAxisHorizontal(float y, const std::string& title, const Vector4& color) {
-			auto label = new GUI::Label(Vector2::zero, title);
-			add(label);
-			axes.push_back({ label, true, y, color });
-		}
-
-		void addAxisVertical(float x, const std::string& title, const Vector4& color) {
-			auto label = new GUI::Label(Vector2::zero, title);
-			add(label);
-			axes.push_back({ label, false, x, color });
-		}
-
-		void generateOwnVertices(const Vector2& offset, std::vector<GUI::GUIVertex>& vertices) override {
-			if (watch) {
-				addSample(*watch);
-			}
-
-			quad(vertices, position + offset, size, Vector2(0, 0), Vector2(0, 0), Vector4(0, 0, 0, 0.25));
-			for (auto& axis : axes) {
-				if (axis.horiz) {
-					quad(vertices, position + offset + Vector2(0, axis.pos*scale), Vector2(size.x, 1), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
-					axis.label->position = Vector2(0, axis.pos*scale + 4);
-				}
-				else {
-					quad(vertices, position + offset + Vector2(axis.pos, 0), Vector2(1, size.y), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), axis.col);
-					axis.label->position = Vector2(axis.pos, 4);
-				}
-			}
-			float min = 999999999;
-			float max = -99999999;
-			for (int i = 1; i < (int)size.x; ++i) {
-				auto p = offset + position + Vector2(i, 0);
-				float samp = samples[(pos + i - 1) % (int)size.x];
-				float samp2 = samples[(pos + i) % (int)size.x];
-				if (samp > max) max = samp;
-				if (samp < min) min = samp;
-				if (samp > samp2) {
-					p.y += samp2 * scale;
-					samp = samp - samp2;
-				}
-				else {
-					p.y += samp * scale;
-					samp = samp2 - samp;
-				}
-				samp *= scale;
-				quad(vertices, p, Vector2(1, std::max(samp, 1.0f)), Vector2(0, 0), Vector2(1.0f / 256, 1.0f / 256), Vector4(1, 1, 1, 0.75));
-			}
-			if (autoscale && max > 0) {
-				scale = size.y / max;
-			}
-		}
-
-		float* watch = nullptr;
-		bool autoscale = false;
-		float scale = 1.0f;
-		std::vector<Axis> axes;
-		float* samples;
-		int pos = 0;
-	};
 
 	float fps = 0;
-	auto meter = new Meter(Vector2::zero, Vector2(200, 50));
+	auto meter = new Graph(Vector2::zero, Vector2(200, 50));
 	meter->addAxisHorizontal(60, "60", Vector4::blue);
 	meter->addAxisHorizontal(30, "30", Vector4::red);
 	meter->add(new GUI::Label(Vector2(0, 50), "FPS"));
@@ -336,7 +260,7 @@ int main() {
 	meter->scale = 0.5f;
 	gui->root->add(meter);
 
-	auto updateMeter = new Meter(Vector2::zero, Vector2(200, 50));
+	auto updateMeter = new Graph(Vector2::zero, Vector2(200, 50));
 	gui->root->add(updateMeter);
 	updateMeter->add(new GUI::Label(Vector2(0, 50), "Live Blocks"));
 	updateMeter->autoscale = true;
@@ -480,8 +404,8 @@ int main() {
 		std::sort(chunks.begin(), chunks.end(), [&](Chunk* a, Chunk* b) {
 			auto d1 = (Vector3(a->gridx*chunkSize, a->gridy*chunkSize, a->gridz*chunkSize) - camera->position).lengthSq();
 			auto d2 = (Vector3(b->gridx*chunkSize, b->gridy*chunkSize, b->gridz*chunkSize) - camera->position).lengthSq();
-			if (a->isNew) d1 *= 0.001f;
-			if (b->isNew) d2 *= 0.001f;
+			if (a->isNew) d1 *= 0.01f;
+			if (b->isNew) d2 *= 0.01f;
 			return d1 < d2;
 		});
 		for (auto& chunk : chunks) {
