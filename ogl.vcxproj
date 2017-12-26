@@ -145,6 +145,7 @@
     <ClCompile Include="src\GLContext.cpp" />
     <ClCompile Include="src\GLDebug.cpp" />
     <ClCompile Include="src\GLMesh.cpp" />
+    <ClCompile Include="src\Graph.cpp" />
     <ClCompile Include="src\GUI.cpp" />
     <ClCompile Include="src\lina.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -172,6 +173,7 @@
     <ClInclude Include="src\GLShader.h" />
     <ClInclude Include="src\GLTexture.h" />
     <ClInclude Include="src\GLVertexShader.h" />
+    <ClInclude Include="src\Graph.h" />
     <ClInclude Include="src\GUI.h" />
     <ClInclude Include="src\lina.h" />
     <ClInclude Include="src\Material.h" />

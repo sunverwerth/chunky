@@ -26,6 +26,7 @@ public:
 		static void line(std::vector<GUI::GUIVertex>& vertices, const Vector2& from, const Vector2& to, const Vector2& uv, const Vector2& uvs, const Vector4& color);
 		void add(Widget* child);
 		void remove(Widget* child);
+		virtual void onResize() {}
 
 		Widget* parent = nullptr;
 		Vector2 position = Vector2::zero;

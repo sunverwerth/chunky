@@ -71,7 +71,7 @@ public:
 
 	BlockType getBlockAt(int x, int y, int z);
 	void setBlockAt(int x, int y, int z, BlockType type);
-	Vector4 calcLight(int x, int y, int z);
+	Vector4 calcLight(int x, int y, int z, int dx, int dy, int dz);
 };
 
 #endif

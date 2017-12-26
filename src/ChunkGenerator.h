@@ -38,7 +38,8 @@ public:
 				double scale = pow(perlin.noise0_1(0.0005*x + start.x, 0.0005*z + start.y), 4) * 200;
 				double ground = -50 + perlin2.noise0_1(0.0005*x + start.x, 0.0005*z + start.y) * 100;
 				double sharpness = 1.0 + pow(perlin2.noise0_1(0.01*x + start.x, 0.01*z + start.y), 4) * 50;
-				noise[(z - offsetz)*chunkSize + (x - offsetx)] = ground + ease(perlin3.octaveNoise0_1(0.01*x + start.x, 0.01*z + start.y, 6), sharpness) * scale;
+				double height = ground + ease(perlin3.octaveNoise0_1(0.01*x + start.x, 0.01*z + start.y, 6), sharpness) * scale;
+				noise[(z - offsetz)*chunkSize + (x - offsetx)] = height;
 			}
 		}
 	}
@@ -60,8 +61,8 @@ public:
 					double trees = perlin.noise0_1(0.0075*x + start.x, 0.0075*z + start.y);
 					if (trees > 0.5) {
 						trees = (trees - 0.5) * 2;
-						trees *= 0.1;
-						if ((double)rand() / RAND_MAX < trees) return BlockType::WOOD;
+						trees *= 0.2;
+						//if ((double)rand() / RAND_MAX < trees) return BlockType::WOOD;
 					}
 				}
 				return BlockType::AIR;

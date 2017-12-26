@@ -16,18 +16,17 @@ public:
     Graph(const Vector2& position, const Vector2& size);
 
     void addSample(float v);
-
     void addAxisHorizontal(float y, const std::string& title, const Vector4& color);
-
     void addAxisVertical(float x, const std::string& title, const Vector4& color);
-
     void generateOwnVertices(const Vector2& offset, std::vector<GUI::GUIVertex>& vertices) override;
+
+	void onResize() override;
 
     float* watch = nullptr;
     bool autoscale = false;
     float scale = 1.0f;
     std::vector<Axis> axes;
-    float* samples;
+    std::vector<float> samples;
     int pos = 0;
 };
 

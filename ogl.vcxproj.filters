@@ -51,6 +51,9 @@
     <ClCompile Include="src\GLDebug.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graph.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\fs.glsl">
@@ -119,6 +122,9 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="src\GLDebug.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Graph.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

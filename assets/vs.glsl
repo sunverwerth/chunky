@@ -19,7 +19,9 @@ uniform float time;
 void main()
 {
 	worldPos = (world * vec4(aPos, 1.0f)).xyz;
-	//worldPos += vec3(sin(time+worldPos.z)+sin(time+worldPos.y), 0, cos(time+worldPos.x)+cos(time+worldPos.y))*0.1;
+
+	//worldPos += vec3(sin(worldPos.y*3.7), sin(worldPos.z+worldPos.x*2.3), cos(worldPos.x*10.77))*0.025;
+
     gl_Position = projection * view * vec4(worldPos, 1.0f);
     TexCoord = aTexCoord;
 	Normal = aNormal;//mat3(transpose(inverse(worldView))) * aNormal;

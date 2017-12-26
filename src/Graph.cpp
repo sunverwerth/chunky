@@ -1,13 +1,19 @@
 #include "Graph.h"
+#include <algorithm>
 
-Graph::Graph(const Vector2& position, const Vector2& size) : Widget(position, size), samples(new float[(int)size.x]) {
-    std::fill(samples, samples + (int)size.x, 0.0f);
+Graph::Graph(const Vector2& position, const Vector2& size) : Widget(position, size) {
+    samples.resize((int)size.x);
 }
 
 void Graph::addSample(float v) {
     samples[pos] = v;
     pos = (pos + 1) % (int)size.x;
 }
+
+void Graph::onResize() {
+	samples.resize((int)size.x);
+}
+
 
 void Graph::addAxisHorizontal(float y, const std::string& title, const Vector4& color) {
     auto label = new GUI::Label(Vector2::zero, title);

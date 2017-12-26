@@ -14,9 +14,6 @@ uniform float fade;
 
 void main()
 {
-	// Vector4(0.8f, 0.8f, 1.0f, 1.0f), 1.0);
-
-
 	vec4 t1 = texture(texture1, TexCoord);
 
 	vec3 diff = clamp(dot(Normal, vec3(0.5,0.7,0.5)), 0, 1) * lightColor;

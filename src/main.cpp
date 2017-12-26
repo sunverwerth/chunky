@@ -112,11 +112,11 @@ double currentTime, dt;
 Vector3 position(0.5, 10, 0.5);
 Vector3 velocity(0, 0, 0);
 Vector2 move(0, 0);
-bool forward, backward, left, right, jump, click, grounded, debugInfo = false, fullScreen = false;
+bool forward, backward, left, right, jump, click, rclick, grounded, debugInfo = false, fullScreen = false;
 bool initPlayer = true;
 
 void updateChunk(Chunk* chunk) {
-	for(int i=0;i<10;++i) {
+	for (int i = 0; i < 10; ++i) {
 		if (!chunk->liveBlocks.empty()) {
 			int i = rand() % chunk->liveBlocks.size();
 			auto block = chunk->liveBlocks[i];
@@ -248,27 +248,25 @@ int main() {
 	label->color = Vector4::white;
 	gui->root->add(label);
 
-	gui->root->add(new GUI::Label(Vector2::zero, "."));
+	gui->root->add(new GUI::Label(Vector2(0, 4), "."));
 
 
 	float fps = 0;
+
 	auto meter = new Graph(Vector2::zero, Vector2(200, 50));
+	meter->watch = &fps;
+	meter->scale = 0.5f;
 	meter->addAxisHorizontal(60, "60", Vector4::blue);
 	meter->addAxisHorizontal(30, "30", Vector4::red);
 	meter->add(new GUI::Label(Vector2(0, 50), "FPS"));
-	meter->watch = &fps;
-	meter->scale = 0.5f;
 	gui->root->add(meter);
 
-	auto updateMeter = new Graph(Vector2::zero, Vector2(200, 50));
-	gui->root->add(updateMeter);
-	updateMeter->add(new GUI::Label(Vector2(0, 50), "Live Blocks"));
-	updateMeter->autoscale = true;
+	gui->root->add(new GUI::Panel(Vector2(0, -225), Vector2(32, 32)));
 
 	auto chMat = new Material();
 	chMat->alpha = false;
 	chMat->program = gl.createProgram("assets/vs.glsl", "assets/fs.glsl");
-	chMat->textures.push_back(gl.loadTexture("assets/atlas.png"));
+	chMat->textures.push_back(gl.loadTexture("assets/mc.png"));
 	Chunk::chunkMaterial = chMat;
 
 	auto wMat = new Material();
@@ -289,6 +287,7 @@ int main() {
 	models.push_back(GLDebug::lineModel);
 
 	//glfwSwapInterval(0);
+	int numTris = 0;
 
 	// render loop
 	// -----------
@@ -313,8 +312,11 @@ int main() {
 		auto p = camera->position;
 		bool hasBlock = false;
 		Vector3 blockPos;
+		Vector3 prevBlockPos;
 		for (int i = 0; i < 100; ++i) {
 			p = p + camera->front() * 0.1f;
+			prevBlockPos = blockPos;
+			blockPos = p;
 			auto fl = floor(p);
 			auto ch = getChunkPos(fl.x, fl.y, fl.z);
 			auto chunk = getChunk(ch.x, ch.y, ch.z);
@@ -322,7 +324,6 @@ int main() {
 			auto block = chunk->getBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize);
 			if (block != BlockType::AIR && block != BlockType::WATER) {
 				hasBlock = true;
-				blockPos = p;
 				//GLDebug::aabb(fl-Vector3(0.001,0.001,0.001), fl + Vector3(1.002, 1.002, 1.002), Vector4(1,1,1,0.5f));
 				break;
 			}
@@ -338,7 +339,7 @@ int main() {
 		if (backward) velocity = velocity - f * 4;
 		if (left) velocity = velocity - r * 4;
 		if (right) velocity = velocity + r * 4;
-		if (/*grounded &&*/ jump) velocity.y = 6;
+		if (grounded && jump) velocity.y = 6;
 		if (click && hasBlock) {
 			auto fl = floor(blockPos);
 			auto ch = getChunkPos(fl.x, fl.y, fl.z);
@@ -351,6 +352,12 @@ int main() {
 					}
 				}
 			}
+		}
+		if (rclick && hasBlock) {
+			auto fl = floor(prevBlockPos);
+			auto ch = getChunkPos(fl.x, fl.y, fl.z);
+			auto chunk = getChunk(ch.x, ch.y, ch.z);
+			chunk->setBlockAt(fl.x - ch.x*chunkSize, fl.y - ch.y*chunkSize, fl.z - ch.z*chunkSize, BlockType::DIRT);
 		}
 
 		auto qp = floor(position);
@@ -519,14 +526,13 @@ int main() {
 		sstr << "chunk - X: " << cp.x << " Y: " << cp.y << " Z: " << cp.z << "\n";
 		sstr << "Active blocks: " << numActive << "\n";
 		sstr << "Chunk hit ratio: " << ((long long)hits * 100 / (hits + misses)) << "%\n";
+		sstr << "Num Tris: " << numTris << "\n";
+
 		label->text = sstr.str();
 		label->position = Vector2(-gui->camera->width / 2, gui->camera->height / 2);
 
 
-		meter->position = label->position - Vector2(0, 100);
-
-		updateMeter->position = meter->position - Vector2(0, meter->size.y + 10);
-		updateMeter->addSample(numActive);
+		meter->position = Vector2(-gui->root->size.x / 2, -gui->root->size.y / 2);
 
 		// camera
 		camera->position = position + Vector3::up * 1.5f;
@@ -549,10 +555,13 @@ int main() {
 			return ia < ib;
 		});
 
+		numTris = 0;
 		// models
 		for (auto& model : models) {
 			model->fade -= dt;
 			if (model->fade < 0) model->fade = 0;
+			if (model->mesh->numVertices == 0) continue;
+
 			model->material->use();
 
 			model->material->program->setUniform("view", view);
@@ -572,6 +581,7 @@ int main() {
 			model->material->program->setUniform("worldViewProjection", projection * view * world);
 
 			model->mesh->draw();
+			numTris += model->mesh->numIndices / 3;
 		}
 
 		GLDebug::reset();
@@ -579,8 +589,10 @@ int main() {
 
 		gl.clearDepth(1.0);
 
-		gui->camera->width = gl.width/2;
-		gui->camera->height = gl.height/2;
+		gui->camera->width = gl.width / 2;
+		gui->camera->height = gl.height / 2;
+		gui->root->size.x = gui->camera->width;
+		gui->root->size.y = gui->camera->height;
 
 		gui->material->use();
 		gui->material->program->setUniform("projection", gui->camera->getProjectionMatrix());
@@ -602,8 +614,9 @@ int main() {
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {
-	static bool oldmousedown;
-	forward = backward = left = right = click = jump = false;
+	static bool oldlmousedown;
+	static bool oldrmousedown;
+	forward = backward = left = right = click = rclick = jump = false;
 
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
@@ -625,7 +638,7 @@ void processInput(GLFWwindow *window)
 	}
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
 		initPlayer = true;
-		position = Vector3(0.5f + rand()%65536, 100, 0.5f + rand()%65536);
+		position = Vector3(0.5f + rand() % 65536, 100, 0.5f + rand() % 65536);
 	}
 	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
 		debugInfo = !debugInfo;
@@ -644,10 +657,14 @@ void processInput(GLFWwindow *window)
 			glfwSetWindowPos(window, 0, 0);
 		}
 	}
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !oldmousedown) {
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !oldlmousedown) {
 		click = true;
 	}
-	oldmousedown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1);
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) && !oldrmousedown) {
+		rclick = true;
+	}
+	oldlmousedown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1);
+	oldrmousedown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
