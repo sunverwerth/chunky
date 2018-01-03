@@ -1,6 +1,8 @@
 #include "GUI.h"
 #include "GLMesh.h"
 
+#include <algorithm>
+
 void GUI::Widget::quad(std::vector<GUI::GUIVertex>& vertices, const Vector2& min, const Vector2& size, const Vector2& uv, const Vector2& uvs, const Vector4& color) {
 	vertices.push_back({ min + Vector2(size.x, 0), uv + Vector2(uvs.x, 0.0f), color });
 	vertices.push_back({ min + Vector2(size.x, size.y), uv + Vector2(uvs.x, uvs.y), color });

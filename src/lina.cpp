@@ -154,7 +154,7 @@ Matrix4x4 operator*(const Matrix4x4& a, const Matrix4x4& b) {
 }
 
 Matrix4x4 matrixPerspective(float fov, float aspect, float near, float far) {
-	float tanHalfFovy = std::tanf(fov / 2.0f);
+	float tanHalfFovy = tanf(fov / 2.0f);
 
 	return Matrix4x4(
 		1.0f / (aspect * tanHalfFovy), 0, 0, 0,
@@ -199,7 +199,7 @@ void Quaternion::normalize() {
 }
 
 float Quaternion::magnitude() const {
-	return std::sqrtf(w*w + x*x + y*y + z*z);
+	return sqrtf(w*w + x*x + y*y + z*z);
 }
 
 Quaternion Quaternion::inverse() const {
@@ -220,9 +220,9 @@ Quaternion Quaternion::conjugate() const {
 }
 
 Quaternion Quaternion::axisAngle(const Vector3& axis, float angle) {
-	float s = std::sinf(angle / 2);
+	float s = sinf(angle / 2);
 	return Quaternion{
-		std::cosf(angle / 2),
+		cosf(angle / 2),
 		axis.x * s,
 		axis.y * s,
 		axis.z * s

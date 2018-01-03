@@ -78,7 +78,7 @@ Vector3 getChunkPos(int x, int y, int z) {
 }
 
 Vector3 floor(const Vector3& pos) {
-	return Vector3(std::floorf(pos.x), std::floorf(pos.y), std::floorf(pos.z));
+	return Vector3(floorf(pos.x), floorf(pos.y), floorf(pos.z));
 }
 
 Chunk* getChunk(const Vector3& pos) {
@@ -190,8 +190,8 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-	gl.width = 1600;
-	gl.height = 900;
+	gl.width = 320;
+	gl.height = 200;
 
 	GLFWwindow* window = glfwCreateWindow(gl.width, gl.height, "LearnOpenGL", NULL, NULL);
 	glfwSetWindowPos(window, 50, 50);
@@ -275,7 +275,7 @@ int main() {
 	wMat->textures.push_back(chMat->textures[0]);
 	Chunk::waterMaterial = wMat;
 
-	ChunkGenerator gen(glfwGetTimerValue());
+	ChunkGenerator gen(glfwGetTime()*10000);
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetCursorPosCallback(window, mouse_callback);
@@ -589,8 +589,8 @@ int main() {
 
 		gl.clearDepth(1.0);
 
-		gui->camera->width = gl.width / 2;
-		gui->camera->height = gl.height / 2;
+		gui->camera->width = gl.width;
+		gui->camera->height = gl.height;
 		gui->root->size.x = gui->camera->width;
 		gui->root->size.y = gui->camera->height;
 
