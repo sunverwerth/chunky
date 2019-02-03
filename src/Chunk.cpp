@@ -37,7 +37,7 @@ void Chunk::generateBlocks(ChunkGenerator* gen) {
 			for (int x = 0; x < chunkSize; ++x) {
 				auto block = gen->getBlockAt(gridx*chunkSize + x, gridy*chunkSize + y, gridz*chunkSize + z);
 				if (block == BlockType::WOOD) {
-					liveBlocks.push_back(DynamicBlock{ x, y, z, 7 + rand() % 7 });
+					liveBlocks.push_back(DynamicBlock{ x, y, z, 17 + rand() % 17 });
 				}
 				blocks[y * chunkSize*chunkSize + z * chunkSize + x] = block;
 			}

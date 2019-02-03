@@ -45,6 +45,8 @@ void error(const std::string& msg) {
 #endif
 }
 
+auto fogColor = Vector3(0.8, 0.8, 1);
+float fogStart = 50;
 GLContext gl;
 Camera* camera = nullptr;
 std::vector<Chunk*> chunks;
@@ -113,6 +115,7 @@ Vector3 position(0.5, 10, 0.5);
 Vector3 velocity(0, 0, 0);
 Vector2 move(0, 0);
 bool forward, backward, left, right, jump, click, rclick, grounded, debugInfo = false, fullScreen = false;
+bool gravity = true;
 bool initPlayer = true;
 
 void updateChunk(Chunk* chunk) {
@@ -291,7 +294,6 @@ int main() {
 
 	// render loop
 	// -----------
-	auto fogColor = Vector3(0.8, 0.8, 1);
 	while (!glfwWindowShouldClose(window))
 	{
 		currentTime = glfwGetTime();
@@ -311,7 +313,7 @@ int main() {
 		// raycast block
 		auto p = camera->position;
 		bool hasBlock = false;
-		Vector3 blockPos;
+		Vector3 blockPos(0, 0, 0);
 		Vector3 prevBlockPos;
 		for (int i = 0; i < 100; ++i) {
 			p = p + camera->front() * 0.1f;
@@ -331,15 +333,19 @@ int main() {
 
 		// input
 		velocity.z = velocity.x = 0;
+		if (!gravity) {
+			velocity.y = 0;
+		}
+		float speed = gravity ? 4 : 100;
 		auto r = camera->right();
 		auto f = camera->front();
 		f.y = 0;
 		f.normalize();
-		if (forward) velocity = velocity + f * 4;
-		if (backward) velocity = velocity - f * 4;
-		if (left) velocity = velocity - r * 4;
-		if (right) velocity = velocity + r * 4;
-		if (grounded && jump) velocity.y = 6;
+		if (forward) velocity = velocity + f * speed;
+		if (backward) velocity = velocity - f * speed;
+		if (left) velocity = velocity - r * speed;
+		if (right) velocity = velocity + r * speed;
+		if ((grounded || !gravity) && jump) velocity.y = 6;
 		if (click && hasBlock) {
 			auto fl = floor(blockPos);
 			auto ch = getChunkPos(fl.x, fl.y, fl.z);
@@ -365,7 +371,7 @@ int main() {
 
 		// generate missing chunks
 		std::vector<Chunk*> newChunks;
-		for (int y = -2; y < 2; ++y) {
+		for (int y = -5; y < 6; ++y) {
 			for (int x = -5; x < 6; ++x) {
 				for (int z = -5; z < 6; ++z) {
 					int ix = cp.x + x;
@@ -452,18 +458,30 @@ int main() {
 
 		grounded = false;
 		auto floorBlock = getBlockAt(qp.x, qp.y, qp.z);
-		if (floorBlock == BlockType::AIR) {
-			velocity.y -= 15.81f*dt;
+		if (gravity) {
+			if (floorBlock == BlockType::AIR) {
+				velocity.y -= 15.81f*dt;
+			}
+			else if (floorBlock == BlockType::WATER) {
+				grounded = true;
+				velocity.y -= 1.5f*dt;
+				if (velocity.y > 2) {
+					velocity.y = 2;
+				}
+				if (velocity.y < -2) {
+					velocity.y = -2;
+				}
+			}
 		}
-		else if (floorBlock == BlockType::WATER) {
-			grounded = true;
-			velocity.y -= 1.5f*dt;
-			if (velocity.y > 2) {
-				velocity.y = 2;
-			}
-			if (velocity.y < -2) {
-				velocity.y = -2;
-			}
+
+		auto headBlock = getBlockAt(camera->position);
+		if (headBlock == BlockType::WATER) {
+			fogColor = Vector3(0.35, 0.35, 0.55);
+			fogStart = 1;
+		}
+		else {
+			fogColor = Vector3(0.9, 0.9, 1);
+			fogStart = 25;
 		}
 
 		position = position + velocity * dt;
@@ -570,6 +588,7 @@ int main() {
 			model->material->program->setUniform("lightPos", lightPos);
 			model->material->program->setUniform("lightColor", lightColor);
 			model->material->program->setUniform("fogColor", fogColor);
+			model->material->program->setUniform("fogStart", fogStart);
 			model->material->program->setUniform("fade", model->fade);
 			model->material->program->setUniform("time", (float)glfwGetTime());
 
@@ -642,6 +661,9 @@ void processInput(GLFWwindow *window)
 	}
 	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
 		debugInfo = !debugInfo;
+	}
+	if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+		gravity = !gravity;
 	}
 	if (glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS) {
 		fullScreen = !fullScreen;

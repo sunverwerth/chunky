@@ -62,7 +62,7 @@ public:
 					if (trees > 0.5) {
 						trees = (trees - 0.5) * 2;
 						trees *= 0.2;
-						//if ((double)rand() / RAND_MAX < trees) return BlockType::WOOD;
+						if ((double)rand() / RAND_MAX < trees) return BlockType::WOOD;
 					}
 				}
 				return BlockType::AIR;
@@ -75,7 +75,7 @@ public:
 			}
 			else {
 				if (y > waterLevel) return BlockType::GRASS;
-				else if (y == waterLevel) return BlockType::SAND;
+				else if (y > waterLevel - 3) return BlockType::SAND;
 			}
 			return BlockType::DIRT;
 		}
