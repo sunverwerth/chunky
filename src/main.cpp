@@ -269,7 +269,7 @@ int main() {
 	auto chMat = new Material();
 	chMat->alpha = false;
 	chMat->program = gl.createProgram("assets/vs.glsl", "assets/fs.glsl");
-	chMat->textures.push_back(gl.loadTexture("assets/mc.png"));
+	chMat->textures.push_back(gl.loadTexture("assets/atlas.png"));
 	Chunk::chunkMaterial = chMat;
 
 	auto wMat = new Material();

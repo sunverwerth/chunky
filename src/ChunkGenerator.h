@@ -62,7 +62,7 @@ public:
 					if (trees > 0.5) {
 						trees = (trees - 0.5) * 2;
 						trees *= 0.2;
-						if ((double)rand() / RAND_MAX < trees) return BlockType::WOOD;
+						//if ((double)rand() / RAND_MAX < trees) return BlockType::WOOD;
 					}
 				}
 				return BlockType::AIR;
